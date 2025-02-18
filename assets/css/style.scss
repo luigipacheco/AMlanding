@@ -3,6 +3,13 @@
 
 @use "main.scss";
 
+
+:root{
+    --bulma-body-color: rgb(100,100,100);
+    --bulma-hr-background-color: rgb(201, 201, 201);
+    --bulma-card-radius: 0rem;
+}
+
 #navbar {
     opacity: 0.8;
 }
