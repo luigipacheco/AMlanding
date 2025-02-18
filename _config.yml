@@ -13,9 +13,9 @@ description:  Robot Control
 # URL of Image of the Site
 site-image: /assets/images/icon.png
 # Keywords of the Site
-site-keywords: Site, Template, Theme
+site-keywords: Robot, control, digital fabrication
 # URL for the Image of custom Favicon
-favicon-url: 
+favicon-url: /assets/images/favicon.ico
 
 # URL of the Image of Custom Hero Image (i.e., the image in the background of the very first section of the Homepage)
 heroimage: /assets/images/test.gif
@@ -23,14 +23,14 @@ heroimage: /assets/images/test.gif
 # Social Media and Contact
 # If you don't want to use any icon, you can leave them blank.
 email: luis.pacheco@neobrutal.com
-facebook_username: thedevslot
-twitter_username: thedevslot
-instagram_username: thedevslot
-linkedin_username: thedevslot
-github_username:  thedevslot
-youtube_channel_id: UCk_93NXYP-U_AOB5GfWlOow
-reddit_username: /
-behance_username: /
+#facebook_username: thedevslot
+#twitter_username: thedevslot
+instagram_username: animaquina_
+#linkedin_username: thedevslot
+#github_username:  thedevslot
+youtube: codedvoxels
+#reddit_username: /
+#behance_username: /
 dribbble_username: /
 spotify_username: /
 
@@ -41,7 +41,7 @@ google-analytics: UA-163806439-1
 disqus-shortname: thedevslot
 
 # Name of the Author
-author-name: Luis Pacheco
+author-name: Animaquina
 # URL for the Image of the Author
 author-image: /assets/images/icon.png
 # 60 Words About the Author
