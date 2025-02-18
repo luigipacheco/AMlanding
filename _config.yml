@@ -2,9 +2,9 @@
 markdown: kramdown
 
 # URL of the Site
-url: ''
+url: "https://luigipacheco.github.io/" 
 # Base URL of the Site (i.e., Name of the Repository in which the Site is hosted)
-baseurl: 
+baseurl: "AMlanding"
 
 # Title of the Site
 title: Animaquina
