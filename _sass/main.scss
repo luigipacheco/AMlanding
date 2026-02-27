@@ -80,7 +80,12 @@ hr {
     }
 }
 
-/* Feature grid */
+/* Feature grid — reset global .column margin override */
+.feature-grid > .column {
+    margin: 0;
+    padding: 0.75rem;
+}
+
 .feature-grid .card {
     height: 100%;
     transition: transform 0.2s ease;
