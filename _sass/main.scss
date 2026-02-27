@@ -79,3 +79,48 @@ hr {
         }
     }
 }
+
+/* Feature grid */
+.feature-grid .card {
+    height: 100%;
+    transition: transform 0.2s ease;
+}
+
+.feature-grid .card:hover {
+    transform: translateY(-4px);
+}
+
+.feature-grid .card .card-image .image.is-16by9 img {
+    object-fit: cover;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.feature-grid .card .card-content {
+    padding: 1rem 1.25rem;
+}
+
+.feature-grid .card .card-content .title {
+    margin-bottom: 0.5rem;
+}
+
+/* About statement */
+#about .hero-body {
+    padding: 4rem 1.5rem;
+}
+
+/* Contact CTA */
+#contact .hero-body {
+    padding: 4rem 1.5rem;
+}
+
+/* Hero copy */
+.hero-copy {
+    max-width: 600px;
+    margin: 0 auto;
+    font-size: 1.1rem;
+    line-height: 1.6;
+}

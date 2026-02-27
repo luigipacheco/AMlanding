@@ -1,14 +1,18 @@
-<section class="hero is-fullheight has-text-centered has-background-white-ter" id="contact">
+<section class="hero has-text-centered has-background-white-ter" id="contact">
     <div class="hero-body">
         <div class="container">
-
-            {% unless site.email == %}
-            <a id="contact-button" href="mailto:{{site.email}}"
-                class="button  is-uppercase has-text-weight-normal is-black is-outlined has-text-weight-semibold column is-two-fifths"
-                target="_blank">
-                <i class="fas fa-envelope"></i>Send me an Email
-            </a>
-            {% endunless %}
+            <h2 class="title is-size-3 has-text-black">Ready to try Animaquina?</h2>
+            <p class="subtitle has-text-grey">Join the beta and start building with interactive robotics.</p>
+            <div class="buttons is-centered">
+                <a href="{{site.waitlist-url}}" class="button is-black is-uppercase has-text-weight-semibold is-medium">
+                    Join the waiting list
+                </a>
+                {% unless site.email == %}
+                <a href="mailto:{{site.email}}" class="button is-outlined is-black is-uppercase has-text-weight-semibold is-medium">
+                    <i class="fas fa-envelope"></i>&nbsp;Contact us
+                </a>
+                {% endunless %}
+            </div>
         </div>
     </div>
 </section>

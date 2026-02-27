@@ -9,16 +9,20 @@ baseurl: ""
 # Title of the Site
 title: Animaquina
 # Description of the Site
-description:  Robot Control
+description: Real-time digital twin-driven robot development environment.
 # URL of Image of the Site
 site-image: /assets/images/icon.png
 # Keywords of the Site
-site-keywords: Robot, control, digital fabrication
+site-keywords: robotics, physical ai, digital twin, industrial robots, simulation
 # URL for the Image of custom Favicon
 favicon-url: /assets/images/favicon.ico
 
 # URL of the Image of Custom Hero Image (i.e., the image in the background of the very first section of the Homepage)
 heroimage: /assets/images/test.gif
+
+# Landing page CTAs
+waitlist-url: "https://airtable.com/app0gdCsm8p8MGUgc/pagjEol2Q0pnHP0g0/form"
+demo-url: "#"
 
 # Social Media and Contact
 # If you don't want to use any icon, you can leave them blank.
@@ -45,7 +49,7 @@ author-name: Animaquina
 # URL for the Image of the Author
 author-image: /assets/images/icon.png
 # 60 Words About the Author
-author-about: Animaquina is a robot Integrated Development Environment (IDE) designed for controlling and simulating Robots within Blender. It leverages Blender's powerful 3D capabilities to provide a versatile platform for robot programming and visualization.
+author-about: Animaquina is building an interactive development environment for deployable Physical AI systems, powered by real-time digital twins and simulation-native workflows.
 
 # URL to the Author's Profile (i.e., Github, Twitter, Stackoverflow, etc)
 author-url: https://www.luigipacheco.com/
