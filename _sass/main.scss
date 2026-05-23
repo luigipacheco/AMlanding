@@ -315,6 +315,28 @@ h1, h2, h3, h4, h5, h6,
     margin: 1rem 0 0.5rem;
 }
 
+#hero .hero-etym {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--paper);
+    opacity: 0.75;
+    margin: 0.75rem 0 1.75rem;
+    padding-top: 1rem;
+    border-top: var(--hairline) solid rgba(244, 242, 236, 0.25);
+    max-width: 36rem;
+}
+
+#hero .hero-etym .sep {
+    opacity: 0.5;
+    font-weight: 700;
+}
+
 #hero .hero-tagline {
     font-family: var(--font-display);
     font-weight: 300;
