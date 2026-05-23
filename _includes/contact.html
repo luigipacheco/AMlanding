@@ -1,15 +1,21 @@
-<section class="hero has-text-centered has-background-white-ter" id="contact">
-    <div class="hero-body">
-        <div class="container">
-            <h2 class="title is-size-3 has-text-black">Ready to try Animaquina?</h2>
-            <p class="subtitle has-text-grey">Join the beta and start building with interactive robotics.</p>
-            <div class="buttons is-centered">
-                <a href="{{site.waitlist-url}}" class="button is-black is-uppercase has-text-weight-semibold is-medium">
-                    Join the waiting list
+<section class="section-frame section-frame--ink" id="contact">
+    <span class="section-tag">[Anm/03] &middot; Beta</span>
+    <span class="section-tag section-tag--right">Now Open</span>
+
+    <div class="contact-grid">
+        <h2 class="contact-title">Ready to&nbsp;build with Animaquina?</h2>
+
+        <div>
+            <p class="contact-copy">
+                Join the private beta. Get early access, shape the roadmap, and start programming robots interactively.
+            </p>
+            <div class="contact-actions">
+                <a href="{{site.waitlist-url}}" class="btn btn--invert">
+                    Join the waitlist <span class="arrow">&rarr;</span>
                 </a>
-                {% unless site.email == %}
-                <a href="mailto:{{site.email}}" class="button is-outlined is-black is-uppercase has-text-weight-semibold is-medium">
-                    <i class="fas fa-envelope"></i>&nbsp;Contact us
+                {% unless site.email == "" %}
+                <a href="mailto:{{site.email}}" class="btn btn--ghost-light">
+                    Contact us
                 </a>
                 {% endunless %}
             </div>

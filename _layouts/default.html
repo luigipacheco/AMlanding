@@ -3,7 +3,7 @@ layout: compress
 ---
 
 <!DOCTYPE html>
-<html>
+<html lang="en">
 {% include head.html %}
 
 <body>
@@ -12,31 +12,33 @@ layout: compress
   {% include about.html %}
   {% include features.html %}
   {% include contact.html %}
-  <!--Footer begins here-->
   {% include footer.html %}
-</body>
-<script>
-  var navItems = document.getElementsByClassName('navbar-item');
-  var heroes = document.getElementsByClassName('hero');
-  const viewOffset = 200; 
 
-  window.addEventListener("scroll", function (event) {
-    var scroll = this.scrollY;
-    var position = window.pageYOffset;
+  <script>
+    (function () {
+      var navItems = document.querySelectorAll('#navbar a.navbar-item');
+      var sectionIds = ['hero', 'about', 'features', 'contact'];
+      var sections = sectionIds.map(function (id) { return document.getElementById(id); }).filter(Boolean);
+      var viewOffset = 200;
 
-    for (var i = 0; i < navItems.length; i++) {
-      navItems[i].classList.remove('is-active');
-    }
-
-    for (var i = 0; i < heroes.length; i++) {
-        var sectionTop = heroes[i].offsetTop-viewOffset;
-        var sectionBottom = heroes[i].offsetTop + heroes[i].offsetHeight-viewOffset;
-
-        if (scroll >= sectionTop && scroll < sectionBottom) {
-          navItems[i+1].classList.add('is-active');
+      function setActive() {
+        var scroll = window.scrollY || window.pageYOffset;
+        var activeIndex = -1;
+        for (var i = 0; i < sections.length; i++) {
+          var top = sections[i].offsetTop - viewOffset;
+          var bottom = top + sections[i].offsetHeight;
+          if (scroll >= top && scroll < bottom) { activeIndex = i; break; }
+        }
+        for (var j = 0; j < navItems.length; j++) navItems[j].classList.remove('is-active');
+        if (activeIndex !== -1 && navItems[activeIndex]) {
+          navItems[activeIndex].classList.add('is-active');
+        }
       }
-    }
-  });
-</script>
+
+      window.addEventListener('scroll', setActive, { passive: true });
+      window.addEventListener('load', setActive);
+    })();
+  </script>
+</body>
 
 </html>
