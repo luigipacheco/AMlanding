@@ -21,18 +21,19 @@ favicon-url: /assets/images/favicon.ico
 heroimage: /assets/images/test.gif
 
 # Landing page CTAs
-waitlist-url: "https://airtable.com/app0gdCsm8p8MGUgc/pagjEol2Q0pnHP0g0/form"
+download-url: "https://github.com/luigipacheco/animaquina/releases/latest"
 demo-url: "https://www.youtube.com/watch?v=XwshO8WM0Xw"
+github-url: "https://github.com/luigipacheco/animaquina"
 
 # Social Media and Contact
 # If you don't want to use any icon, you can leave them blank.
-email: luis.pacheco@neobrutal.com
+email: info@neobrutal.com
 #facebook_username: thedevslot
 #twitter_username: thedevslot
 instagram_username: animaquina_
 #linkedin_username: thedevslot
 #github_username:  thedevslot
-youtube: codedvoxels
+youtube: luigi_pacheco
 #reddit_username: /
 #behance_username: /
 #dribbble_username: /

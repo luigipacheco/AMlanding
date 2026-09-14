@@ -1,0 +1,27 @@
+<section class="section-frame section-frame--ink" id="download">
+    <span class="section-tag">[Anm/05] &middot; Download</span>
+    <span class="section-tag section-tag--right">Available now</span>
+
+    <div class="cta-grid">
+        <h2 class="cta-title">Download Animaquina.</h2>
+
+        <div>
+            <p class="cta-copy">
+                Animaquina is available now. Install it, connect your robot and start programming interactively.
+            </p>
+            <div class="cta-actions">
+                <a href="{{ site.download-url | default: '#download' }}" class="btn btn--invert">
+                    Download <span class="arrow">&rarr;</span>
+                </a>
+                <a href="{{site.demo-url}}" target="_blank" rel="noopener noreferrer" class="btn btn--ghost-light">
+                    Watch demo <span class="arrow">&#8599;</span>
+                </a>
+                {% if site.github-url %}
+                <a href="{{site.github-url}}" target="_blank" rel="noopener noreferrer" class="btn btn--ghost-light">
+                    GitHub <span class="arrow">&#8599;</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>

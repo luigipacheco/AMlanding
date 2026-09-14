@@ -319,6 +319,18 @@ h1, h2, h3, h4, h5, h6,
     color: var(--color-bg) !important;
 }
 
+/* Download — the one accent item in the menu */
+#navbar a.navbar-item.navbar-item--cta {
+    background: var(--color-accent) !important;
+    color: var(--color-on-accent) !important;
+}
+
+#navbar a.navbar-item.navbar-item--cta:hover,
+#navbar a.navbar-item.navbar-item--cta.is-active {
+    background: var(--color-text) !important;
+    color: var(--color-bg) !important;
+}
+
 #navbar .navbar-burger {
     color: var(--color-text);
     height: 3.25rem;
@@ -669,14 +681,177 @@ h1, h2, h3, h4, h5, h6,
 
 #features .feature:hover .feature-copy { opacity: 1; }
 
-/* -----  Contact  ----- */
-#contact.section-frame {
-    background: var(--color-surface-deep);
-    color: var(--color-text);
-    border-top: var(--rule) solid var(--color-text);
+/* -----  Cells (products)  ----- */
+#cells.section-frame {
+    padding-bottom: 0;
 }
 
-#contact .contact-grid {
+#cells .cells-head {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+    max-width: 1400px;
+    margin: 0 auto 3rem;
+    padding-top: 1.5rem;
+}
+
+@media (min-width: 900px) {
+    #cells .cells-head {
+        grid-template-columns: 1fr 1fr;
+        align-items: end;
+    }
+}
+
+#cells .cells-title {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(2.25rem, 5.5vw, 4.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--color-text);
+    margin: 0;
+}
+
+#cells .cells-intro {
+    font-family: var(--font-mono);
+    font-size: clamp(0.95rem, 1.3vw, 1.05rem);
+    line-height: 1.6;
+    color: var(--color-text);
+    opacity: 0.75;
+    max-width: 50ch;
+    justify-self: end;
+}
+
+#cells .cell-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: var(--hairline) solid var(--color-text);
+    border-left: var(--hairline) solid var(--color-text);
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+@media (min-width: 900px) {
+    #cells .cell-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+#cells .cell {
+    border-right: var(--hairline) solid var(--color-text);
+    border-bottom: var(--hairline) solid var(--color-text);
+    padding: clamp(1.5rem, 2.5vw, 2.25rem);
+    background: var(--color-surface);
+    color: var(--color-text);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    position: relative;
+    transition: background 0.2s ease-out;
+}
+
+/* Hover: same acid top rule as the feature cards */
+#cells .cell::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s ease-out;
+}
+
+#cells .cell:hover { background: var(--color-surface-deep); }
+#cells .cell:hover::before { transform: scaleX(1); }
+
+#cells .cell-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+}
+
+#cells .cell-index {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 3.25rem;
+    line-height: 0.8;
+    letter-spacing: -0.02em;
+    color: var(--color-accent);
+}
+
+#cells .cell-tag {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: var(--color-text);
+    color: var(--color-bg);
+    padding: 0.25rem 0.5rem;
+}
+
+#cells .cell-title {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(1.6rem, 2.4vw, 2.1rem);
+    line-height: 1;
+    letter-spacing: -0.01em;
+    text-transform: uppercase;
+    color: var(--color-text);
+    margin: 0;
+}
+
+#cells .cell-copy {
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: var(--color-text);
+    opacity: 0.75;
+    margin: 0;
+}
+
+#cells .cell:hover .cell-copy { opacity: 1; }
+
+/* Spec rows sit at the bottom so CTAs align across cards */
+#cells .cell-spec {
+    margin: auto 0 0;
+    padding-top: 1rem;
+    border-top: var(--hairline) solid var(--color-text);
+    display: grid;
+    gap: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+#cells .cell-spec div {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr;
+    gap: 1rem;
+}
+
+#cells .cell-spec dt {
+    font-weight: 700;
+    opacity: 0.55;
+}
+
+#cells .cell-spec dd { margin: 0; }
+
+#cells .cell-cta {
+    justify-content: space-between;
+    width: 100%;
+}
+
+/* -----  CTA bands (support, download)  ----- */
+#download.section-frame {
+    background: var(--color-surface-deep);
+}
+
+.cta-grid {
     display: grid;
     grid-template-columns: 1fr;
     gap: clamp(1.5rem, 3vw, 3rem);
@@ -687,12 +862,12 @@ h1, h2, h3, h4, h5, h6,
 }
 
 @media (min-width: 900px) {
-    #contact .contact-grid {
+    .cta-grid {
         grid-template-columns: 1.4fr 1fr;
     }
 }
 
-#contact .contact-title {
+.cta-title {
     font-family: var(--font-display);
     font-weight: 900;
     font-size: clamp(2.25rem, 6vw, 5rem);
@@ -703,7 +878,7 @@ h1, h2, h3, h4, h5, h6,
     margin: 0;
 }
 
-#contact .contact-copy {
+.cta-copy {
     font-family: var(--font-mono);
     font-size: clamp(0.95rem, 1.3vw, 1.1rem);
     line-height: 1.55;
@@ -713,10 +888,77 @@ h1, h2, h3, h4, h5, h6,
     margin: 0 0 1.5rem;
 }
 
-#contact .contact-actions {
+.cta-actions {
     display: flex;
     flex-wrap: wrap;
     gap: 0;
+}
+
+.cta-email {
+    display: inline-block;
+    margin-top: 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    letter-spacing: 0.04em;
+    color: var(--color-text);
+    text-decoration: none;
+    border-bottom: 2px solid var(--color-accent);
+    transition: color 0.18s ease-out;
+}
+
+.cta-email:hover { color: var(--color-accent); }
+
+/* -----  GitHub tag (repo link + live star count)  ----- */
+.gh-tag {
+    display: inline-flex;
+    align-items: stretch;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 2px solid var(--color-text);
+    background: var(--color-bg);
+    color: var(--color-text);
+    transition: background 0.18s ease-out, color 0.18s ease-out;
+}
+
+.gh-tag__label,
+.gh-tag__count {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.95rem 1.1rem;
+}
+
+.gh-tag__label svg {
+    width: 1rem;
+    height: 1rem;
+    fill: currentColor;
+}
+
+/* Count reads as its own cell, number in the accent */
+.gh-tag__count {
+    border-left: 2px solid var(--color-text);
+    color: var(--color-accent);
+}
+
+.gh-tag__count[hidden] { display: none; }
+
+.gh-tag:hover {
+    background: var(--color-text);
+    color: var(--color-bg);
+}
+
+.gh-tag:hover .gh-tag__count {
+    color: var(--color-bg);
+    border-left-color: var(--color-bg);
+}
+
+/* Fuses onto the hero button row like the buttons do */
+#hero .hero-actions .btn + .gh-tag {
+    border-left: 0;
 }
 
 /* -----  Footer  ----- */

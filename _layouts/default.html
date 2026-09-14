@@ -11,13 +11,16 @@ layout: compress
   {% include showcase.html %}
   {% include about.html %}
   {% include features.html %}
-  {% include contact.html %}
+  {% include cells.html %}
+  {% include support.html %}
+  {% include download.html %}
   {% include footer.html %}
 
   <script>
     (function () {
-      var navItems = document.querySelectorAll('#navbar a.navbar-item');
-      var sectionIds = ['hero', 'about', 'features', 'contact'];
+      /* Menu links only — the brand link is also a.navbar-item and would shift every index by one. */
+      var navItems = document.querySelectorAll('#navbar .navbar-end a.navbar-item');
+      var sectionIds = ['hero', 'about', 'features', 'cells', 'support', 'download'];
       var sections = sectionIds.map(function (id) { return document.getElementById(id); }).filter(Boolean);
       var viewOffset = 200;
 

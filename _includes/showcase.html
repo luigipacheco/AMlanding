@@ -1,7 +1,7 @@
 <section class="hero is-fullheight" id="hero">
     <div class="hero-body">
         <div class="hero-grid">
-            <span class="eyebrow">Anm/00 &middot; Robotics IDE &middot; Beta {{ "now" | date: "%Y" }}</span>
+            <span class="eyebrow">Anm/00 &middot; Robotics IDE &middot; Available now</span>
 
             <h1 class="hero-wordmark">Animaquina</h1>
             <p class="hero-etym"><span>Anima &middot; soul</span><span class="sep">+</span><span>M&aacute;quina &middot; machine</span></p>
@@ -11,18 +11,19 @@
             </p>
 
             <div class="hero-actions">
-                <a href="{{site.waitlist-url}}" class="btn btn--invert">
-                    Join the waitlist <span class="arrow">&rarr;</span>
+                <a href="{{ site.download-url | default: '#download' }}" class="btn btn--invert">
+                    Download Animaquina <span class="arrow">&rarr;</span>
                 </a>
                 <a href="{{site.demo-url}}" target="_blank" rel="noopener noreferrer" class="btn btn--ghost-light">
                     Watch demo <span class="arrow">&#8599;</span>
                 </a>
+                {% include github-stars.html %}
             </div>
 
             <div class="hero-meta">
                 <span><strong>01</strong> Digital twin core</span>
                 <span><strong>02</strong> Multi-robot kinematics</span>
-                <span><strong>03</strong> Newton physics</span>
+                <span><strong>03</strong> MuJoCo physics</span>
                 <span><strong>04</strong> VR ready</span>
             </div>
         </div>
