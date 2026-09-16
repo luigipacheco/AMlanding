@@ -8,6 +8,7 @@ baseurl: ""
 
 # Title of the Site
 title: Animaquina
+title-suffix: "Robot IDE for Blender"
 # Description of the Site
 description: Real-time digital twin-driven robot development environment.
 # URL of Image of the Site
@@ -17,12 +18,10 @@ site-keywords: robotics, physical ai, digital twin, industrial robots, simulatio
 # URL for the Image of custom Favicon
 favicon-url: /assets/images/favicon.ico
 
-# URL of the Image of Custom Hero Image (i.e., the image in the background of the very first section of the Homepage)
-heroimage: /assets/images/test.gif
 
 # Landing page CTAs
 download-url: "https://github.com/luigipacheco/animaquina/releases/latest"
-demo-url: "https://www.youtube.com/watch?v=XwshO8WM0Xw"
+demo-url: "https://www.youtube.com/watch?v=fK9M8f3fa6o"
 github-url: "https://github.com/luigipacheco/animaquina"
 
 # Social Media and Contact
@@ -91,6 +90,8 @@ defaults:
 
 # Exclude
 exclude:
+  - README.md
+  - LICENSE
   - .sass-cache/
   - .jekyll-cache/
   - gemfiles/
