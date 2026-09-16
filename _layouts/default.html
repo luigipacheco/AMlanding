@@ -12,7 +12,7 @@ layout: compress
   {% include about.html %}
   {% include features.html %}
   {% include cells.html %}
-  {% include support.html %}
+  {% include services.html %}
   {% include download.html %}
   {% include footer.html %}
 
@@ -20,7 +20,7 @@ layout: compress
     (function () {
       /* Menu links only — the brand link is also a.navbar-item and would shift every index by one. */
       var navItems = document.querySelectorAll('#navbar .navbar-end a.navbar-item');
-      var sectionIds = ['hero', 'about', 'features', 'cells', 'support', 'download'];
+      var sectionIds = ['hero', 'about', 'features', 'cells', 'services', 'download'];
       var sections = sectionIds.map(function (id) { return document.getElementById(id); }).filter(Boolean);
       var viewOffset = 200;
 

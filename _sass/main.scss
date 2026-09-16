@@ -686,7 +686,11 @@ h1, h2, h3, h4, h5, h6,
     padding-bottom: 0;
 }
 
-#cells .cells-head {
+#services.section-frame {
+    padding-bottom: 0;
+}
+
+.cells-head {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1.25rem;
@@ -696,13 +700,13 @@ h1, h2, h3, h4, h5, h6,
 }
 
 @media (min-width: 900px) {
-    #cells .cells-head {
+    .cells-head {
         grid-template-columns: 1fr 1fr;
         align-items: end;
     }
 }
 
-#cells .cells-title {
+.cells-title {
     font-family: var(--font-display);
     font-weight: 900;
     font-size: clamp(2.25rem, 5.5vw, 4.5rem);
@@ -713,7 +717,7 @@ h1, h2, h3, h4, h5, h6,
     margin: 0;
 }
 
-#cells .cells-intro {
+.cells-intro {
     font-family: var(--font-mono);
     font-size: clamp(0.95rem, 1.3vw, 1.05rem);
     line-height: 1.6;
@@ -723,7 +727,7 @@ h1, h2, h3, h4, h5, h6,
     justify-self: end;
 }
 
-#cells .cell-grid {
+.cell-grid {
     display: grid;
     grid-template-columns: 1fr;
     border-top: var(--hairline) solid var(--color-text);
@@ -733,10 +737,10 @@ h1, h2, h3, h4, h5, h6,
 }
 
 @media (min-width: 900px) {
-    #cells .cell-grid { grid-template-columns: repeat(3, 1fr); }
+    .cell-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-#cells .cell {
+.cell {
     border-right: var(--hairline) solid var(--color-text);
     border-bottom: var(--hairline) solid var(--color-text);
     padding: clamp(1.5rem, 2.5vw, 2.25rem);
@@ -750,7 +754,7 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* Hover: same acid top rule as the feature cards */
-#cells .cell::before {
+.cell::before {
     content: "";
     position: absolute;
     top: 0;
@@ -763,17 +767,17 @@ h1, h2, h3, h4, h5, h6,
     transition: transform 0.2s ease-out;
 }
 
-#cells .cell:hover { background: var(--color-surface-deep); }
-#cells .cell:hover::before { transform: scaleX(1); }
+.cell:hover { background: var(--color-surface-deep); }
+.cell:hover::before { transform: scaleX(1); }
 
-#cells .cell-head {
+.cell-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 0.6rem;
 }
 
-#cells .cell-index {
+.cell-index {
     font-family: var(--font-display);
     font-weight: 900;
     font-size: 3.25rem;
@@ -782,7 +786,7 @@ h1, h2, h3, h4, h5, h6,
     color: var(--color-accent);
 }
 
-#cells .cell-tag {
+.cell-tag {
     font-family: var(--font-mono);
     font-size: 0.72rem;
     font-weight: 700;
@@ -793,7 +797,7 @@ h1, h2, h3, h4, h5, h6,
     padding: 0.25rem 0.5rem;
 }
 
-#cells .cell-title {
+.cell-title {
     font-family: var(--font-display);
     font-weight: 900;
     font-size: clamp(1.6rem, 2.4vw, 2.1rem);
@@ -804,7 +808,7 @@ h1, h2, h3, h4, h5, h6,
     margin: 0;
 }
 
-#cells .cell-copy {
+.cell-copy {
     font-family: var(--font-mono);
     font-size: 0.9rem;
     line-height: 1.6;
@@ -813,10 +817,17 @@ h1, h2, h3, h4, h5, h6,
     margin: 0;
 }
 
-#cells .cell:hover .cell-copy { opacity: 1; }
+.cell:hover .cell-copy { opacity: 1; }
+
+/* Inline link in a section intro */
+.cells-intro a {
+    color: var(--color-accent);
+    text-decoration: none;
+    border-bottom: 2px solid var(--color-accent);
+}
 
 /* Spec rows sit at the bottom so CTAs align across cards */
-#cells .cell-spec {
+.cell-spec {
     margin: auto 0 0;
     padding-top: 1rem;
     border-top: var(--hairline) solid var(--color-text);
@@ -828,20 +839,20 @@ h1, h2, h3, h4, h5, h6,
     text-transform: uppercase;
 }
 
-#cells .cell-spec div {
+.cell-spec div {
     display: grid;
     grid-template-columns: 5.5rem 1fr;
     gap: 1rem;
 }
 
-#cells .cell-spec dt {
+.cell-spec dt {
     font-weight: 700;
     opacity: 0.55;
 }
 
-#cells .cell-spec dd { margin: 0; }
+.cell-spec dd { margin: 0; }
 
-#cells .cell-cta {
+.cell-cta {
     justify-content: space-between;
     width: 100%;
 }
