@@ -1,0 +1,4 @@
+Animaquina Academy (tutorials)
+
+Exported from animaquina-academy/sandbox by tools/export-tutorials.mjs on 2026-11-05.
+Do not edit here: change the source and export again.

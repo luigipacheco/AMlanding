@@ -1,0 +1,24 @@
+<section class="hero" id="hero">
+  <div class="hero-text">
+    <div class="eyebrow">Anm/00 &middot; Robotics IDE &middot; Available now</div>
+    <h1 class="wordmark">Animaquina</h1>
+    <div class="etym">Anima &middot; soul <b>+</b> M&aacute;quina &middot; machine</div>
+    <p class="lede">
+      The interactive development environment for industrial robots. Real-time digital twins, visual programming, and immersive control &mdash; in a single canvas.
+    </p>
+    <div class="actions">
+      <a href="{{ site.download-url | default: '#download' }}" class="btn">Download Animaquina <span>&rarr;</span></a>
+      <a href="{{site.demo-url}}" target="_blank" rel="noopener noreferrer" class="btn btn--ghost">Watch demo <span>&#8599;</span></a>
+      {% include github-stars.html %}
+    </div>
+    <div class="meta">
+      <span><strong>01</strong>Digital twin core</span>
+      <span><strong>02</strong>Multi-robot kinematics</span>
+      <span><strong>03</strong>MuJoCo solver</span>
+      <span><strong>04</strong>VR ready</span>
+    </div>
+  </div>
+  <div class="hero-robot" id="hero-robot" aria-label="A robot model moving slowly">
+    <img class="hero-still" src="assets/images/multirobot.webp" alt="" decoding="async">
+  </div>
+</section>

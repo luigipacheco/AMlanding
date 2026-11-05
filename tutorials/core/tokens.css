@@ -1,0 +1,31 @@
+/* Animaquina design tokens, paper variant: shared by the landing page, the sandbox and the tutorials.
+   Source of the identity: animaquina.com (AMlanding/_sass/main.scss). See sandbox/DESIGN.md. */
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Mono:wght@400;700&display=swap");
+
+:root {
+  --color-bg: #FFFFFF;          /* paper (the site's --color-bg is #000; light here on purpose) */
+  --color-surface: #F4F4F1;     /* raised areas on paper */
+  --color-text: #000000;        /* ink */
+  --color-muted: #6E6E6E;       /* secondary text on paper (the site uses white at 70%) */
+  --color-accent: #D9FF00;      /* Animaquina lime: fills only on paper, never text or thin lines */
+  --color-on-accent: #000000;
+  --font-display: "Archivo Black", "Arial Black", sans-serif;
+  --font-mono: "Space Mono", "JetBrains Mono", ui-monospace, monospace;
+  --hairline: 1px;
+  --rule: 2px;
+  --gutter: clamp(1rem, 2vw, 2rem);
+}
+
+/* ── shared pieces (same names as animaquina.com) ───────── */
+.eyebrow { font: 700 0.68rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: .6rem; }
+.eyebrow::before { content: ""; width: 1.5rem; height: var(--rule); background: var(--color-text); }
+.label-accent { display: inline-block; font: 700 .72rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+  background: var(--color-accent); color: var(--color-on-accent); padding: .3rem .6rem; }
+.label-ink { display: inline-block; font: 700 .72rem var(--font-mono); letter-spacing: .06em; text-transform: uppercase;
+  background: var(--color-text); color: var(--color-bg); padding: .3rem .6rem; }
+.btn { display: inline-flex; align-items: center; gap: .6rem; padding: .85rem 1.4rem; font: 700 .76rem var(--font-mono);
+  letter-spacing: .06em; text-transform: uppercase; text-decoration: none; cursor: pointer;
+  border: var(--rule) solid var(--color-text); background: var(--color-accent); color: var(--color-on-accent); }
+.btn:hover { background: var(--color-text); color: var(--color-bg); }
+.btn--ghost { background: var(--color-bg); color: var(--color-text); }
+.btn--ghost:hover { background: var(--color-text); color: var(--color-bg); }

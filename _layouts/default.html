@@ -4,44 +4,28 @@ layout: compress
 
 <!DOCTYPE html>
 <html lang="en">
-{% include head.html %}
-
-<body>
-  {% include navbar.html %}
-  {% include showcase.html %}
-  {% include about.html %}
-  {% include features.html %}
-  {% include cells.html %}
-  {% include services.html %}
-  {% include download.html %}
-  {% include footer.html %}
-
-  <script>
-    (function () {
-      /* Menu links only — the brand link is also a.navbar-item and would shift every index by one. */
-      var navItems = document.querySelectorAll('#navbar .navbar-end a.navbar-item');
-      var sectionIds = ['hero', 'about', 'features', 'cells', 'services', 'download'];
-      var sections = sectionIds.map(function (id) { return document.getElementById(id); }).filter(Boolean);
-      var viewOffset = 200;
-
-      function setActive() {
-        var scroll = window.scrollY || window.pageYOffset;
-        var activeIndex = -1;
-        for (var i = 0; i < sections.length; i++) {
-          var top = sections[i].offsetTop - viewOffset;
-          var bottom = top + sections[i].offsetHeight;
-          if (scroll >= top && scroll < bottom) { activeIndex = i; break; }
-        }
-        for (var j = 0; j < navItems.length; j++) navItems[j].classList.remove('is-active');
-        if (activeIndex !== -1 && navItems[activeIndex]) {
-          navItems[activeIndex].classList.add('is-active');
-        }
-      }
-
-      window.addEventListener('scroll', setActive, { passive: true });
-      window.addEventListener('load', setActive);
-    })();
+<head>
+  {% include meta.html %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="{{site.baseurl}}/assets/css/home.css">
+  <link rel="shortcut icon" href="{% if site.favicon-url %}{{site.favicon-url}}{% else %}{{ 'assets/images/logo.png' | absolute_url }}{% endif %}" type="image/x-icon">
+  <script type="importmap">
+    { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
   </script>
+</head>
+
+<body class="home">
+  {% include home-nav.html %}
+  {% include home-hero.html %}
+  {% include home-manifesto.html %}
+  {% include home-platform.html %}
+  {% include home-tutorials.html %}
+  {% include home-cells.html %}
+  {% include home-services.html %}
+  {% include home-download.html %}
+  {% include home-footer.html %}
+  <script type="module" src="{{site.baseurl}}/assets/js/hero-robot.js"></script>
 </body>
 
 </html>

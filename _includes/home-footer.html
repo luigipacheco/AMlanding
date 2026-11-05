@@ -1,0 +1,23 @@
+<footer class="foot">
+  <div class="foot-about">
+    <b class="brand-foot">{{site.author-name}}</b>
+    <p>{{site.author-about}}</p>
+  </div>
+  <div>
+    <h4>Site</h4>
+    <a href="#hero">Index</a><a href="#about">Manifesto</a><a href="#features">Platform</a>
+    <a href="#tutorials">Tutorials</a><a href="#cells">Cells</a><a href="#services">Services</a><a href="#download">Download</a>
+  </div>
+  <div>
+    <h4>Connect</h4>
+    {% if site.email %}<a href="mailto:{{site.email}}">{{site.email}}</a>{% endif %}
+    {% if site.instagram_username %}<a target="_blank" rel="noopener noreferrer" href="https://instagram.com/{{site.instagram_username}}">Instagram</a>{% endif %}
+    {% if site.youtube %}<a target="_blank" rel="noopener noreferrer" href="https://youtube.com/@{{site.youtube}}">YouTube</a>{% endif %}
+    {% if site.linkedin_username %}<a target="_blank" rel="noopener noreferrer" href="https://linkedin.com/in/{{site.linkedin_username}}">LinkedIn</a>{% endif %}
+    {% if site.github-url %}<a target="_blank" rel="noopener noreferrer" href="{{site.github-url}}">GitHub</a>{% endif %}
+  </div>
+  <div class="foot-base">
+    <span>&copy; {{ "now" | date: "%Y" }} &middot; {{site.author-name}} &middot; Designed by <a href="{{site.author-url}}" target="_blank" rel="noopener noreferrer">Luis Pacheco</a></span>
+    <a href="#hero">Back to top &uarr;</a>
+  </div>
+</footer>

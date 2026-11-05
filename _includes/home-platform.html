@@ -1,0 +1,17 @@
+<section class="frame" id="features">
+  <span class="tag">[Anm/02] &middot; Platform</span>
+  <span class="tag tag--right tag--accent">09 Modules</span>
+  <h2>Everything to program robots, interactively.</h2>
+  <p class="lede">A single environment that fuses simulation, real-time control, and physical AI &mdash; built on the open creative tools you already trust.</p>
+  <div class="modules">
+    {% assign features = "01|Core|Digital Twin|digitaltwin|Digital Twin|Live bidirectional sync between physical and virtual robot.;02|Core|Real-Time|realtime|Real-Time Control|Jog and drive your robot live from Blender or a gamepad.;03|Core|Kinematics|multirobot|Multi-Robot Support|KUKA, Universal Robots and UFactory/xArm arms, driven from a single scene.;04|Author|Control|procedural|Procedural Robot Control|IK, constraints and keyframes for expressive, programmable robot motion.;05|Author|Nodes|df|Visual Programming|Node-based motion logic with Geometry Nodes for digital fabrication.;06|Author|Immersive|vr|VR Ready|Immersive robot programming with native VR controllers and headsets.;07|Deploy|Hardware|iot|IoT End-Effectors|Plug-and-play connection to grippers, spindles and custom actuators.;08|Deploy|Physics|newton|MuJoCo Solver|MuJoCo IK solver for collision detection and simulation-driven trajectories.;09|Deploy|Physical AI|physicalai|Physical AI Ready|Build and deploy intelligent robotic systems with AI-driven motion and decisions." | split: ";" %}
+    {% for f in features %}{% assign p = f | split: "|" %}
+    <article>
+      <div class="mh"><b>{{ p[0] }}</b><span>{{ p[1] }}</span><span class="mh-tag">{{ p[2] }}</span></div>
+      <div class="media"><img src="assets/images/{{ p[3] }}.webp" loading="lazy" decoding="async" alt="{{ p[4] }}"></div>
+      <h3>{{ p[4] }}</h3>
+      <p>{{ p[5] }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
