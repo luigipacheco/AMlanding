@@ -23,13 +23,18 @@ try {
     }
     menu.append(group);
   }
-  bar.append(prev, menu, next);
+  // learn with this robot: the tutorial opens with whichever model is showing
+  const learn = document.createElement('a'); learn.className = 'robot-learn';
+  learn.textContent = 'Learn with this robot →';
+  bar.append(prev, menu, next, learn);
   hero.append(bar);
 
   let robot = null, view = null, t0 = performance.now();
   const show = r => {
     if (view) { stage.scene.remove(view.group); view.dispose(); }
     robot = r; menu.value = r.id;
+    learn.href = `tutorials/learn.html?t=industrial-robots&robot=${encodeURIComponent(r.id)}`;
+    learn.title = `Introduction to Industrial Robots, with the ${r.maker} ${r.name}`;
     view = new RobotView(r);
     view.onModel = () => hero.classList.add('live');
     stage.scene.add(view.group);

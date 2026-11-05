@@ -318,17 +318,19 @@ export class App {
     this.areas = new AreaManager(this, {
       view3d: view, properties: this.panel.el, animaquina: this.panel.leftEl,
       timeline: this.timelineUI.root, nodes: this.nodeEditor.root,
+      spreadsheet: this.nodeEditor.sheet.root,
     });
     this.nodeEditor.root.hidden = false;
     this.root.classList.add('areas-on');
     // editors redraw when their area changes size
     this.areaObserver = new ResizeObserver(() => this.onAreas());
-    for (const node of [view, this.timelineUI.root, this.nodeEditor.root]) this.areaObserver.observe(node);
+    for (const node of [view, this.timelineUI.root, this.nodeEditor.root, this.nodeEditor.sheet.root]) this.areaObserver.observe(node);
     this.areas.render();
   }
   /** After the layout changed or an area was resized. */
   onAreas() {
     if (!this.areas) return;
+    this.nodeEditor?.syncSpreadsheetArea();
     this.stage.resize();
     this.timelineUI?.render();
     if (this.nodeEditor?.isOpen) { this.nodeEditor.render(); this.nodeEditor.syncMode(); }

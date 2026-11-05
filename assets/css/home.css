@@ -171,3 +171,8 @@ a.card:hover { background: var(--color-accent); }
   font: inherit; letter-spacing: .06em; text-transform: uppercase; text-align: center; text-align-last: center; padding: .7rem .5rem; appearance: none; }
 .robot-pick select:hover { background: var(--color-accent); }
 .robot-pick select:focus-visible, .robot-pick button:focus-visible { outline: var(--rule) solid var(--color-text); outline-offset: -5px; }
+
+.robot-pick .robot-learn { flex: none; display: flex; align-items: center; padding: 0 1rem; border-left: var(--rule) solid var(--color-text);
+  background: var(--color-accent); color: var(--color-on-accent); text-decoration: none; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; }
+.robot-pick .robot-learn:hover { background: var(--color-text); color: var(--color-bg); }
+@media (max-width: 520px) { .robot-pick { flex-wrap: wrap; } .robot-pick .robot-learn { flex: 1 0 100%; justify-content: center; padding: .6rem; border-left: 0; border-top: var(--rule) solid var(--color-text); } }

@@ -12,6 +12,7 @@ export class Hud {
       <h1 class="title"></h1>
       <div class="body"></div>
       <div class="try"><b class="label-ink">TRY</b> <span></span></div>
+      <div class="cta"></div>
       <div class="card"><div class="card-head"><span class="card-title"></span><button class="card-fold" type="button"></button></div><pre class="card-body"></pre></div>`;
     root.appendChild(this.el);
     this.pager = document.createElement('nav');
@@ -48,6 +49,10 @@ export class Hud {
     const t = text(slide.try);
     this.q('.try').style.display = t ? '' : 'none';
     this.q('.try span').textContent = t;
+    // a slide may end with links out: [{ label, href, primary }]; '#...' links point into the site's home page
+    const links = (typeof slide.cta === 'function' ? slide.cta(robot) : slide.cta) || [];
+    this.q('.cta').style.display = links.length ? '' : 'none';
+    this.q('.cta').innerHTML = links.map(l => `<a class="btn${l.primary ? '' : ' btn--ghost'}" href="${esc((l.href.startsWith('#') ? (this.deck.home || '../') : '') + l.href)}">${esc(l.label)}</a>`).join('');
     this.card([]);
     this.pager.querySelector('.count').textContent = `${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`;
   }
