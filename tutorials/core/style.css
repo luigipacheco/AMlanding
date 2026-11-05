@@ -620,3 +620,16 @@ button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-v
 
 /* a tutorial slide with nothing to change has no panel */
 .panel.empty:not(.sidebar) { display: none; }
+
+/* Fields and local Python inspection share the existing editor controls. */
+.sock.field-capable { border-radius: 0 !important; transform: rotate(45deg); }
+.sock.field { background: var(--color-text); }
+.grow.param input[type="text"] { width: 100%; min-width: 0; font: inherit; border: 0; background: transparent; color: inherit; }
+.at-python { flex: 0 0 auto; border-bottom: 2px solid var(--color-text); }
+.at-python .at-status:empty { display: none; }
+.python-dialog { color: var(--color-text); background: var(--color-bg); border: 2px solid var(--color-text); width: min(420px, 90vw); font: inherit; padding: 20px; }
+.python-dialog::backdrop { background: #0005; }
+.python-dialog label { display: grid; gap: 5px; margin: 14px 0; }
+.python-dialog input { width: 100%; box-sizing: border-box; padding: 8px; border: 2px solid var(--color-text); color: inherit; background: transparent; font: inherit; }
+.python-dialog button { margin-right: 8px; padding: 7px; border: 2px solid var(--color-text); background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.python-dialog button:focus-visible { outline: 3px solid var(--color-accent); }
