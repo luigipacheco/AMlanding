@@ -38,6 +38,7 @@ export class Panel {
     this.el = document.createElement('aside');
     this.el.className = 'panel';
     this.el.innerHTML = `
+      <button class="sheet-toggle" type="button" aria-expanded="false"></button>
       <div class="panel-tabs" role="tablist"></div>
       <div class="panel-body"></div>
       <div class="panel-foot"></div>
@@ -47,13 +48,23 @@ export class Panel {
     this.body = this.el.querySelector('.panel-body');
     this.foot = this.el.querySelector('.panel-foot');
     this.sideEl = this.el.querySelector('.side-tabs');
+    // phones: the tutorial's controls fold into one bar; tap it to open them over the bottom of the screen
+    this.sheetBtn = this.el.querySelector('.sheet-toggle');
+    this.sheetBtn.addEventListener('click', () => this.setSheet(!this.el.classList.contains('sheet-open')));
+    this.setSheet(false);
     this.rows = {};
     this.state = { side: 'Item', open: { ROBOTS: true, MOVE: true, PATH: false, WATCH: true }, sub: {}, ...loadState() };
     if (!SIDE.includes(this.state.side)) this.state.side = 'Item';
     this.root = root;
   }
 
-  get visible() { return !this.el.classList.contains('hidden'); }
+  get visible() { return !this.el.classList.contains('hidden') && !this.el.classList.contains('empty'); }
+  setSheet(open) {
+    this.el.classList.toggle('sheet-open', open);
+    this.sheetBtn.setAttribute('aria-expanded', String(open));
+    this.sheetBtn.innerHTML = open ? '<span>Hide controls</span><span>\u25be</span>' : '<span>Controls</span><span>\u25b4</span>';
+    this.onLayout?.();
+  }
   toggle() { this.el.classList.toggle('hidden'); this.onVisibility?.(); }
 
   /** Kept for older callers: in the sidebar, "active" means the open panel. */
@@ -91,6 +102,7 @@ export class Panel {
       this.tabsEl.appendChild(b);
     }
     if (!specs.length) this.body.innerHTML = '<div class="empty">Nothing to change on this slide.</div>';
+    this.el.classList.toggle('empty', !specs.length);
     specs.forEach((s, i) => this.body.appendChild(this.row(s, i)));
   }
 

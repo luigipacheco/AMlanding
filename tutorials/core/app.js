@@ -80,8 +80,10 @@ export class App {
           : this.hud.el.getBoundingClientRect().right,
         right: this.areas ? 0 : !wide ? 0 : this.deck.workspace ? this.sideEdges().right
           : this.panel.visible ? this.root.clientWidth - this.panel.el.getBoundingClientRect().left : 0,
-        top: this.areas ? 0 : this.deck.workspace ? 34 : 0,
-        bottom: this.areas ? 0 : (this.timelineUI?.root.offsetHeight || 0)
+        // phones, tutorials: the robot sits between the slide text (top) and the controls bar (bottom)
+        top: this.areas ? 0 : this.deck.workspace ? 34 : !wide ? this.hud.el.getBoundingClientRect().bottom - this.root.getBoundingClientRect().top : 0,
+        bottom: this.areas ? 0 : !wide && !this.deck.workspace ? this.root.getBoundingClientRect().bottom - (this.panel.visible ? this.panel.el : this.hud.pager).getBoundingClientRect().top
+          : (this.timelineUI?.root.offsetHeight || 0)
           + (this.nodeEditor?.isOpen && !this.nodeEditor.root.classList.contains('max') ? this.nodeEditor.root.offsetHeight : 0),
       };
     };

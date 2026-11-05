@@ -10,11 +10,12 @@ import s07 from './s07-singularities.js';
 import s08 from './s08-moves.js';
 import s09 from './s09-safety.js';
 import s10 from './s10-simulate.js';
+import s11 from './s11-next.js';
 
 export default {
   id: 'industrial-robots',
   kicker: 'ANIMAQUINA TUTORIALS',
   title: 'Introduction to Industrial Robots',
   home: '../',
-  slides: [s00, s01, s02, s03, s04, s05, s06, s07, s08, s09, s10],
+  slides: [s00, s01, s02, s03, s04, s05, s06, s07, s08, s09, s10, s11],
 };

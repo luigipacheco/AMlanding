@@ -20,12 +20,6 @@ export default {
     'no singularity, no sudden jump.\n\n' +
     "Then check it in the maker's software, and run it slowly the first time.",
   try: 'Make Size bigger until the path breaks. Then move it: Center X / Y, or press G (R turns it).',
-  // the last slide: where to go next (links into the home page's sections)
-  cta: [
-    { label: 'Download Animaquina for Blender →', href: '#download', primary: true },
-    { label: 'Robot cells', href: '#cells' },
-    { label: 'Workshops & services', href: '#services' },
-  ],
   panels: ['PATH', 'WATCH'],
 
   inputs: r => {
