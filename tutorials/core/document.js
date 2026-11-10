@@ -38,12 +38,41 @@ export function parseProject(text, robotIds) {
   if (source.assets !== undefined && source.assets !== null) out.assets = parseAssets(source.assets);
   if (source.timeline !== undefined && source.timeline !== null) out.timeline = parseTimeline(source.timeline);
   if (typeof source.playhead === 'number' && Number.isFinite(source.playhead) && source.playhead >= 0) out.playhead = Math.min(source.playhead, out.timeline?.end ?? 3600);
+  if (source.ids !== undefined && source.ids !== null) {
+    if (!plain(source.ids)) throw new Error('Invalid id counters');
+    out.ids = {};
+    for (const k of ID_KINDS) {
+      const v = source.ids[k];
+      if (v === undefined) continue;
+      if (!Number.isInteger(v) || v < 0 || v > 999999) throw new Error('Invalid id counters');
+      out.ids[k] = v;
+    }
+  }
   if (source.selected !== undefined && source.selected !== null) {
     if (!out.objects?.some(o => o.uid === source.selected)) throw new Error('Invalid selection');
     out.selected = source.selected;
   }
   return out;
 }
+
+/**
+ * A new id ('o12', 'r3', 't7') that this project never used before. The highest number handed out is kept in
+ * data.ids, so the id of something deleted is not given to the next thing made: references to the deleted one
+ * (path chains, timeline tasks, Object Info) stay broken instead of quietly pointing at the newcomer.
+ */
+const ID_KINDS = ['o', 'r', 't'];
+export function nextId(data, kind, used) {
+  const ids = data.ids ||= {};
+  const n = Math.max(ids[kind] || 0, ...used.map(id => +id.slice(1))) + 1;
+  ids[kind] = n;
+  return kind + n;
+}
+
+/** Limits of what a project may hold. The editor keeps to them, so anything it saves opens again. */
+export const MAX_POSITION = 100000;   // mm
+export const MAX_ROTATION = 3600;     // degrees
+export const MAX_SIZE = 100000;       // mm
+export const MAX_SECONDS = 3600;      // timeline length, and a task's start and duration
 
 /**
  * Scene objects (Shift+A): simple shapes placed in the scene, in world coordinates.
@@ -61,12 +90,12 @@ export function parseObjects(source) {
   const seen = new Set();
   const nums = (a, n, max) => Array.isArray(a) && a.length === n && a.every(v => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= max);
   return source.map(o => {
-    if (!plain(o) || typeof o.uid !== 'string' || !/^o\d{1,4}$/.test(o.uid) || seen.has(o.uid)) throw new Error('Invalid object id');
+    if (!plain(o) || typeof o.uid !== 'string' || !/^o\d{1,6}$/.test(o.uid) || seen.has(o.uid)) throw new Error('Invalid object id');
     const type = o.type === 'plane' ? 'grid' : o.type;
     if (!OBJECT_TYPES.includes(type)) throw new Error(`Unknown object type: ${o.type}`);
     if (typeof o.name !== 'string' || o.name.length > 64) throw new Error('Invalid object name');
     if (type === 'geometry' || type === 'empty') {
-      if (!nums(o.pos, 3, 100000) || !nums(o.rot, 3, 3600)) throw new Error('Invalid object transform');
+      if (!nums(o.pos, 3, MAX_POSITION) || !nums(o.rot, 3, MAX_ROTATION)) throw new Error('Invalid object transform');
       seen.add(o.uid);
       const out = { uid: o.uid, type, name: o.name, pos: o.pos.slice(), rot: o.rot.slice() };
       if (type === 'geometry') out.graph = parseGraph(o.graph ?? defaultGraph());
@@ -76,7 +105,7 @@ export function parseObjects(source) {
       }
       return out;
     }
-    if (!nums(o.pos, 3, 100000) || !nums(o.rot, 3, 3600) || !nums(o.size, 3, 100000) || o.size.some(v => v < 0)
+    if (!nums(o.pos, 3, MAX_POSITION) || !nums(o.rot, 3, MAX_ROTATION) || !nums(o.size, 3, MAX_SIZE) || o.size.some(v => v < 0)
       || o.size[0] === 0 || o.size[1] === 0 || (type !== 'grid' && o.size[2] === 0)) throw new Error('Invalid object transform');
     seen.add(o.uid);
     const out = { uid: o.uid, type, name: o.name, pos: o.pos.slice(), rot: o.rot.slice(), size: o.size.slice() };
@@ -98,14 +127,14 @@ export const MAX_TASKS = 64;
 export function parseTimeline(source) {
   if (!plain(source) || !Array.isArray(source.tasks) || source.tasks.length > MAX_TASKS) throw new Error('Invalid timeline');
   const end = source.end;
-  if (typeof end !== 'number' || !(end >= 1 && end <= 3600)) throw new Error('Invalid timeline length');
+  if (typeof end !== 'number' || !(end >= 1 && end <= MAX_SECONDS)) throw new Error('Invalid timeline length');
   const seen = new Set();
   const tasks = source.tasks.map(k => {
-    if (!plain(k) || typeof k.id !== 'string' || !/^t\d{1,4}$/.test(k.id) || seen.has(k.id)) throw new Error('Invalid task id');
-    if (typeof k.robot !== 'string' || !/^r\d{1,4}$/.test(k.robot)) throw new Error('Invalid task robot');
+    if (!plain(k) || typeof k.id !== 'string' || !/^t\d{1,6}$/.test(k.id) || seen.has(k.id)) throw new Error('Invalid task id');
+    if (typeof k.robot !== 'string' || !/^r\d{1,6}$/.test(k.robot)) throw new Error('Invalid task robot');
     if (typeof k.name !== 'string' || k.name.length > 64) throw new Error('Invalid task name');
-    if (![k.start, k.duration].every(v => typeof v === 'number' && Number.isFinite(v)) || k.start < 0 || k.start > 3600 || !(k.duration >= 0.1 && k.duration <= 3600)) throw new Error('Invalid task timing');
-    if (!Array.isArray(k.paths) || k.paths.length > MAX_CHAIN || !k.paths.every(p => typeof p === 'string' && /^o\d{1,4}$/.test(p))) throw new Error('Invalid task paths');
+    if (![k.start, k.duration].every(v => typeof v === 'number' && Number.isFinite(v)) || k.start < 0 || k.start > MAX_SECONDS || !(k.duration >= 0.1 && k.duration <= MAX_SECONDS)) throw new Error('Invalid task timing');
+    if (!Array.isArray(k.paths) || k.paths.length > MAX_CHAIN || !k.paths.every(p => typeof p === 'string' && /^o\d{1,6}$/.test(p))) throw new Error('Invalid task paths');
     seen.add(k.id);
     return { id: k.id, robot: k.robot, name: k.name, start: k.start, duration: k.duration, paths: k.paths.slice() };
   });
@@ -145,7 +174,7 @@ export function parseRegistry(source, robotIds) {
   }
   const seen = new Set();
   const robots = source.robots.map(r => {
-    if (!plain(r) || typeof r.uid !== 'string' || !/^r\d{1,4}$/.test(r.uid) || seen.has(r.uid)) throw new Error('Invalid robot id');
+    if (!plain(r) || typeof r.uid !== 'string' || !/^r\d{1,6}$/.test(r.uid) || seen.has(r.uid)) throw new Error('Invalid robot id');
     if (!robotIds.includes(r.model)) throw new Error(`Unknown robot model: ${r.model}`);
     if (typeof r.name !== 'string' || r.name.length > 64) throw new Error('Invalid robot name');
     if (!Array.isArray(r.base) || r.base.length !== 4 || !r.base.every(v => typeof v === 'number' && Number.isFinite(v) && Math.abs(v) <= 100000)) {
@@ -154,7 +183,7 @@ export function parseRegistry(source, robotIds) {
     seen.add(r.uid);
     const out = { uid: r.uid, model: r.model, name: r.name, base: r.base.slice() };
     if (r.paths !== undefined) {
-      if (!Array.isArray(r.paths) || r.paths.length > MAX_CHAIN || !r.paths.every(p => typeof p === 'string' && /^o\d{1,4}$/.test(p))) throw new Error('Invalid path chain');
+      if (!Array.isArray(r.paths) || r.paths.length > MAX_CHAIN || !r.paths.every(p => typeof p === 'string' && /^o\d{1,6}$/.test(p))) throw new Error('Invalid path chain');
       out.paths = r.paths.slice();
     }
     return out;
@@ -173,8 +202,18 @@ export class ProjectStore {
     this.assets = new Map();   // imported meshes: big and unchanging, so outside the undo snapshots
   }
 
-  /** Add an imported mesh; returns its id. */
+  /** Ids of the imported files some Import Mesh node still uses. */
+  usedAssets() {
+    const used = new Set();
+    for (const o of this.data.objects || []) for (const n of o.graph?.nodes || []) if (n.kind === 'import_mesh' && n.params.asset) used.add(n.params.asset);
+    return used;
+  }
+
+  /** Add an imported mesh; returns its id. Throws when the project could not be saved and opened with it. */
   addAsset(name, positions, faces) {
+    const used = [...this.usedAssets()].map(id => this.assets.get(id)).filter(Boolean);
+    if (used.length >= MAX_ASSETS) throw new Error(`a project holds up to ${MAX_ASSETS} imported files`);
+    if (used.reduce((n, a) => n + a.faces.length, faces.length) > MAX_IMPORT_FACES * 2) throw new Error(`a project holds up to ${MAX_IMPORT_FACES * 2} imported faces`);
     const id = `a${Date.now().toString(36)}${(this.assets.size + 1).toString(36)}`;
     this.assets.set(id, { name: String(name).slice(0, 128), positions: Float64Array.from(positions), faces });
     return id;
@@ -191,6 +230,9 @@ export class ProjectStore {
       if (s.transient) { values[s.key] = s.value; continue; }   // mirrors data held elsewhere (registry, objects)
       const v = values[s.key];
       const options = s.options?.map(o => typeof o === 'object' ? o.value : o);
+      // A number a hair outside its range (a joint parked on its limit, after rad <-> deg) is that limit, not "home".
+      const slack = s.type === 'slider' && !s.softRange ? 1e-9 * Math.max(1, Math.abs(s.max - s.min)) : 0;
+      if (slack && Number.isFinite(v) && v >= s.min - slack && v <= s.max + slack) { values[s.key] = Math.min(s.max, Math.max(s.min, v)); continue; }
       const valid = s.type === 'slider' ? Number.isFinite(v) && (s.softRange || (v >= s.min && v <= s.max))
         : options ? options.includes(v) : typeof v === typeof s.value;
       if (!valid) values[s.key] = s.value;
@@ -220,9 +262,7 @@ export class ProjectStore {
     this.data = entry.data; this.revision++; return true;
   }
   serialize() {
-    // only the imported files some node still uses
-    const used = new Set();
-    for (const o of this.data.objects || []) for (const n of o.graph?.nodes || []) if (n.kind === 'import_mesh' && n.params.asset) used.add(n.params.asset);
+    const used = this.usedAssets();   // only the imported files some node still uses
     const assets = {};
     for (const id of used) {
       const a = this.assets.get(id);

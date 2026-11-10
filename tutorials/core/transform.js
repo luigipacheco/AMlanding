@@ -72,9 +72,19 @@ export class TargetTransform {
       else { this.axis = null; this.local = false; }
       this.exclude = event.shiftKey && this.mode === 'grab'; this.queuePreview();
     } else if (event.key === 'Backspace') { this.input = this.input.slice(0, -1); this.queuePreview(); }
-    else if (/^[0-9.+\-mcderag]$/i.test(event.key)) { this.input += event.key.toLowerCase(); this.queuePreview(); }
+    else if (this.switches(event.key.toLowerCase())) { const mode = this.mode === 'grab' ? 'rotate' : 'grab'; this.cancel(); this.start(mode); }
+    else if (event.key === '-' && this.input && !/^[+-]$/.test(this.input)) {   // like Blender: minus flips the sign wherever it is typed
+      this.input = this.input.startsWith('-') ? this.input.slice(1) : `-${this.input.replace(/^\+/, '')}`; this.queuePreview();
+    }
+    else if (event.key === ',') { this.input += '.'; this.queuePreview(); }
+    else if ((this.mode === 'grab' ? /^[0-9.+\-mc]$/i : /^[0-9.+\-derag]$/i).test(event.key)) { this.input += event.key.toLowerCase(); this.queuePreview(); }
     else return false;
     return true;
+  }
+  /** R while moving starts a rotation instead, and G while rotating a move (unless the letter is finishing "deg" / "rad"). */
+  switches(key) {
+    if (this.mode === 'grab') return key === 'r';
+    return key === 'g' && !this.input.endsWith('de');
   }
   queuePreview() {
     this.dirty = true; this.app.loop.invalidate();

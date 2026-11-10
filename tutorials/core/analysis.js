@@ -41,7 +41,8 @@ export function allSolutions(chain, target, { tool = null, ref, seeds = 72, iter
 
 /**
  * How close an fk() result is to the three classic singularities. Works for arms whose J2 and J3 are parallel
- * (UR, KUKA, xArm...). The wrist point is joint 5's origin.
+ * (UR, KUKA, xArm...). The wrist point is joint 5's origin. Checked against det J on 12 of the 13 robots; the xArm 6
+ * is the exception (its J5 and J6 axes are 76 mm apart, so "J4 and J6 in line" is not where it is singular).
  *   shoulder (m):  the wrist point's distance from where J1 stops helping: J1's own axis, or, on robots with a
  *                  shoulder offset like UR, a cylinder around it (radius = `ring`)
  *   elbow (deg):   how far the arm is from fully stretched or folded
@@ -51,12 +52,17 @@ export function allSolutions(chain, target, { tool = null, ref, seeds = 72, iter
 export function singularities(f) {
   const pw = f.origins[4];
   const col = i => m.cross(f.axes[i], m.sub(pw, f.origins[i]));
-  const c1 = col(0), c2 = col(1), c3 = col(2);
-  const shoulder = Math.abs(m.dot(c1, f.axes[1]));
+  const c2 = col(1), c3 = col(2);
+  // The shoulder term is taken where the J5 and J6 axes meet (the point on J6's axis nearest J5's). On a spherical
+  // wrist (KUKA, 850) that is the wrist point itself; on UR, whose wrist is offset, joint 5's origin is not the
+  // point J1 loses, and the measure used to sit 7 to 11 degrees of J2 away from where the Jacobian drops rank.
+  const a = f.axes[4], b = f.axes[5], w = m.sub(f.origins[5], f.origins[4]), ab = m.dot(a, b);
+  const ps = m.add(f.origins[5], m.scale(b, (m.dot(w, a) * ab - m.dot(w, b)) / (1 - ab * ab || 1)));
+  const shoulder = Math.abs(m.dot(m.cross(f.axes[0], m.sub(ps, f.origins[0])), f.axes[1]));
   const elbow = Math.asin(Math.min(1, m.len(m.cross(c2, c3)) / (m.len(c2) * m.len(c3) || 1))) / m.DEG;
   const wrist = Math.asin(Math.min(1, m.len(m.cross(f.axes[3], f.axes[5])))) / m.DEG;
-  const ring = Math.abs(m.dot(m.sub(pw, f.origins[0]), f.axes[1]));
-  return { shoulder, elbow, wrist, ring, wristPoint: pw };
+  const ring = Math.abs(m.dot(m.sub(ps, f.origins[0]), f.axes[1]));
+  return { shoulder, elbow, wrist, ring, wristPoint: pw, shoulderPoint: ps };
 }
 
 /** Joint speeds (rad/s) for a TCP velocity v = [vx vy vz wx wy wz] (m/s, rad/s) at an fk() result (damped). */

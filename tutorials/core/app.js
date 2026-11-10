@@ -34,9 +34,11 @@ export async function loadEditorModules() {
   ({ WORKSPACE_NAMES } = layout);
   document.setGraphParser(graph);                 // project files with Nodes objects need the node graph checks
 }
-import { ProjectStore, MAX_PROJECT_BYTES } from './document.js';
+import { ProjectStore, MAX_PROJECT_BYTES, MAX_OBJECTS, parseProject } from './document.js';
+// The Robot IDE's own shortcut sheet (tutorials keep theirs, below).
+const IDE_HELP = '<h2>Shortcuts</h2><p>The editor under the pointer has the keyboard, as in Blender. While you type in a field, keys go to the field.</p><p><strong>3D Viewport</strong> · Middle mouse, or left drag on a trackpad: orbit · Shift + drag: pan · wheel: zoom · Numpad 1 / 3 / 7: front / right / top (Ctrl: opposite) · Numpad 5: projection · Home: frame all · Numpad . : frame selected.</p><p>Shift+A: add · G / R: move / rotate (X Y Z: axis, again: local, again: free; Shift + axis: plane; type a value) · Enter or click: confirm · Esc or right click: cancel · X: delete (asks) · Delete: delete at once · Tab: to the Node Editor · T: toolbar · N: Item / View.</p><p><strong>Node Editor</strong> · Shift+A: add · drag a socket: link · X: delete · Shift+D: duplicate · A: select all · Home: frame.</p><p><strong>Timeline</strong> · Space: play / pause, from any editor · drag a task or its ends · X: delete the task (asks) · Home: to the start.</p><p>Ctrl+Space: maximize the area under the pointer · Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z: undo, redo. Everything edits the offline scene.</p><form method="dialog"><button>Close</button></form>';
 import { RenderLoop } from './render-loop.js';
-import { editorAction } from './keymap.js';
+import { editorAction, viewportAction, GLOBAL_ACTIONS } from './keymap.js';
 import { TargetTransform } from './transform.js';
 
 export class App {
@@ -68,7 +70,9 @@ export class App {
       if (active) this.slide.tick(this.ctx, this.elapsed);
       const changed = this.stage.render();
       this.gizmo?.update();
-      return changed || active || !!this.timeline?.playing;
+      const again = changed || active || !!this.timeline?.playing;
+      if (!again) this.lastTime = null;   // idle: the next frame starts a new clock, so Play does not begin with a jump
+      return again;
     });
     this.stage.invalidate = () => { if (!document.hidden) this.loop.invalidate(); };
     if (this.deck.workspace) this.root.classList.add('workspace');
@@ -129,14 +133,24 @@ export class App {
   }
 
   key(e) {
-    if (e.target.closest?.('.node-editor, .node-add')) return;   // the node editor has its own keys
     if (e.target.closest?.('input, select, textarea, [contenteditable]:not([contenteditable="false"]), dialog')) return;
+    const inNodes = !!e.target.closest?.('.node-editor, .node-add');   // the node editor has its own keys; only the global ones reach here
+    if (!inNodes && this.areas && e.key === ' ' && (e.ctrlKey || e.metaKey)) {   // Ctrl+Space: maximize the area under the pointer
+      e.preventDefault();
+      this.areas.toggleMax(this.areas.maxPath === null ? (this.hoverArea?.dataset.path ?? null) : null);
+      return;
+    }
     if (this.transform.active) {
-      if (this.transform.key(e)) { e.preventDefault(); e.stopPropagation(); }
+      if (!inNodes && this.transform.key(e)) { e.preventDefault(); e.stopPropagation(); }
       return;
     }
     const action = editorAction(e, { lessons: !this.deck.workspace });
     if (!action) return;
+    if (inNodes && !GLOBAL_ACTIONS.includes(action)) return;
+    // Blender's rule: the editor under the pointer has the keyboard. G, X, Shift+A... act on the 3D Viewport only while
+    // the pointer is over it (or over no area at all, as right after the page opens).
+    const over = this.areas ? this.hoverType : null;
+    if (viewportAction(action) && over && over !== 'view3d') return;
     e.preventDefault();
     if (action === 'panel') { if (this.areas) this.toggleArea('properties'); else { this.panel.toggle(); this.afterPanels(); } }
     else if (action === 'frame') this.frameAll();
@@ -150,9 +164,15 @@ export class App {
     else if (action === 'help') this.help.showModal();
     else if (action === 'add' && this.objects) this.openAddMenu(this.lastPointer);
     else if (action === 'toolbar' && this.toolbarEl) { this.toolbarEl.hidden = !this.toolbarEl.hidden; }
-    else if (action === 'delete' && this.objects?.selected) this.deleteSelected();
+    else if (action === 'delete' && this.objects?.selected) this.confirmDelete();
+    else if (action === 'delete-now' && this.objects?.selected) this.deleteSelected();
     else if (action === 'play' && this.timeline) this.timeline.toggle();
     else if (action === 'nodes' && this.nodeEditor && this.areas && this.objects?.selected?.type === 'geometry') this.nodeEditor.open();
+    else if (action === 'nodes' && this.nodeEditor && this.areas) {
+      // areas stay where the user put them: Tab goes to the Node Editor when it is on screen, and never closes it
+      if (this.nodeEditor.isOpen) this.nodeEditor.root.focus({ preventScroll: true });
+      else this.notice('Tab opens the nodes of a Nodes object: select one, or add one with Shift+A > Nodes');
+    }
     else if (action === 'nodes' && this.nodeEditor) {
       if (this.objects?.selected?.type === 'geometry' || this.nodeEditor.isOpen) this.nodeEditor.toggle();
       else this.notice('Tab opens the nodes of a Nodes object: select one, or add one with Shift+A > Nodes');
@@ -426,11 +446,15 @@ export class App {
       save: ['Save', () => {
         this.transform.confirm(); if (this.transform.active) return;
         this.store.commit(); this.syncHistory();
-        const url = URL.createObjectURL(new Blob([this.store.serialize()], { type: 'application/json' }));
+        const text = this.store.serialize();
+        try { parseProject(text, this.store.robotIds); }   // what Open will do with it
+        catch (error) { this.notice(`Not saved: this project would not open again (${error.message}). Undo the last change and save again.`); return; }
+        const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
         const a = document.createElement('a'); a.href = url; a.download = 'animaquina-project.json'; a.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }],
       open: ['Open', () => this.file.click()],
+      import: ['Import', () => this.meshFile?.click()],
       panel: ['Panel', () => { if (this.areas) this.toggleArea('properties'); else { this.panel.toggle(); this.afterPanels(); } }],
       panelLeft: ['Animaquina panels', () => { if (this.areas) this.toggleArea('animaquina'); else this.panel.toggleLeft(); }],
       ...Object.fromEntries(WORKSPACE_NAMES.map(n => [`ws:${n}`, [n, () => this.areas?.setWorkspace(n)]])),
@@ -446,7 +470,7 @@ export class App {
     };
     const button = (action, label = actions[action][0], tip) => {
       const b = document.createElement('button'); b.textContent = label; b.dataset.action = action;
-      if (tip) b.title = tip;
+      if (tip) { b.title = tip; if (label.length <= 2) b.setAttribute('aria-label', tip); }   // an icon alone has no name
       b.onclick = () => {
         if (this.transform.active && !['save', 'grab', 'rotate'].includes(action)) this.transform.cancel();
         actions[action][1](b); this.toolbar.open = false;
@@ -463,7 +487,8 @@ export class App {
       home.textContent = 'Animaquina'; home.title = 'Animaquina home';
       bar.appendChild(home);
       const groups = [
-        [['open', 'Open', 'Open a project (.json)'], ['save', 'Save', 'Save the project (.json)']],
+        [['open', 'Open', 'Open a project (.json)'], ['save', 'Save', 'Save the project (.json)'],
+          ['import', 'Import', 'Import a mesh (.stl, .obj) as a Nodes object, ready for processing nodes. You can also drop the file on the window']],
         [['undo', '↶', 'Undo · Ctrl+Z'], ['redo', '↷', 'Redo · Ctrl+Shift+Z']],
         [['add', 'Add', 'Add a shape, nodes or a robot · Shift+A']],
         WORKSPACE_NAMES.map(n => [`ws:${n}`, n, `${n} workspace`]),
@@ -491,14 +516,28 @@ export class App {
     this.file.type = 'file'; this.file.accept = '.json,application/json'; this.file.hidden = true;
     this.file.onchange = async () => {
       const file = this.file.files[0]; if (!file) return;
-      try {
-        if (file.size > MAX_PROJECT_BYTES) throw new Error('Project must be smaller than 32 MB');
-        this.store.load(await file.text()); this.restore(); this.notice('Project opened · offline preview');
-      } catch (error) { this.notice(`Could not open project: ${error.message}`); }
+      await this.openProject(file);
       this.file.value = '';
     };
+    if (ws) {
+      // Import: a mesh file becomes a Nodes object (Import Mesh -> Group Output); drop files on the window too
+      this.meshFile = document.createElement('input');
+      this.meshFile.type = 'file'; this.meshFile.accept = '.stl,.obj'; this.meshFile.hidden = true;
+      this.meshFile.onchange = async () => { const file = this.meshFile.files[0]; if (file) await this.importMesh(file); this.meshFile.value = ''; };
+      this.root.append(this.meshFile);
+      this.onDragOver = e => { if ([...(e.dataTransfer?.types || [])].includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } };
+      this.onDrop = e => {
+        const file = e.dataTransfer?.files?.[0]; if (!file) return;
+        e.preventDefault();
+        if (/\.(stl|obj)$/i.test(file.name)) this.importMesh(file);
+        else if (/\.json$/i.test(file.name)) this.openProject(file);
+        else this.notice(`${file.name}: drop an .stl or .obj mesh, or a .json project`);
+      };
+      this.root.addEventListener('dragover', this.onDragOver);
+      this.root.addEventListener('drop', this.onDrop);
+    }
     this.help = document.createElement('dialog'); this.help.className = 'shortcut-help';
-    this.help.innerHTML = '<h2>Viewport shortcuts</h2><p>Middle mouse, or left drag on a trackpad: orbit · Shift + drag: pan · wheel / Ctrl + middle mouse: zoom.</p><p>N: panel · Numpad 1 / 3 / 7: front / right / top (Ctrl: opposite) · Numpad 5: projection · Home: frame all · Numpad decimal: frame target.</p><p>G / R: move / rotate the active TCP target. X / Y / Z: axis; repeat for local, repeat again to release. Shift + axis: plane. Type mm / cm / m or deg / rad; defaults are mm and degrees.</p><p>Enter / left click: confirm · Esc / right click: cancel · Ctrl/Cmd + Z: undo · Ctrl/Cmd + Shift + Z: redo. These edit offline state.</p><p>Shortcuts work anywhere on the page except while typing in a field. Learn: arrows or PageUp/PageDown change slides. P and V remain presentation aliases.</p><form method="dialog"><button>Close</button></form>';
+    this.help.innerHTML = ws ? IDE_HELP : '<h2>Viewport shortcuts</h2><p>Middle mouse, or left drag on a trackpad: orbit · Shift + drag: pan · wheel / Ctrl + middle mouse: zoom.</p><p>N: panel · Numpad 1 / 3 / 7: front / right / top (Ctrl: opposite) · Numpad 5: projection · Home: frame all · Numpad decimal: frame target.</p><p>G / R: move / rotate the active TCP target. X / Y / Z: axis; repeat for local, repeat again to release. Shift + axis: plane. Type mm / cm / m or deg / rad; defaults are mm and degrees.</p><p>Enter / left click: confirm · Esc / right click: cancel · Ctrl/Cmd + Z: undo · Ctrl/Cmd + Shift + Z: redo. These edit offline state.</p><p>Shortcuts work anywhere on the page except while typing in a field. Learn: arrows or PageUp/PageDown change slides. P and V remain presentation aliases.</p><form method="dialog"><button>Close</button></form>';
     if (ws) this.root.append(this.help);
     else this.root.append(this.toolbar, this.file, this.message, this.help);
     this.syncHistory();
@@ -514,17 +553,118 @@ export class App {
     if (changed !== false) this.restore();
   }
   addObject(type) {
+    if (this.objects.list.length >= MAX_OBJECTS) { this.notice(`The scene holds up to ${MAX_OBJECTS} objects: delete one first`); return; }
     this.sceneEdit(`Add ${type}`, () => !!this.objects.add(type));
     this.panel.showSide?.('Item');
   }
+
+  async openProject(file) {
+    try {
+      if (file.size > MAX_PROJECT_BYTES) throw new Error('Project must be smaller than 32 MB');
+      const text = await file.text(), s = this.store;
+      const before = { data: s.data, assets: s.assets, past: s.past, future: s.future };
+      s.load(text);
+      try { this.restore(); }
+      catch (error) { Object.assign(s, before, { pending: null }); s.revision++; this.restore(); throw error; }
+      this.notice('Project opened · offline preview');
+    } catch (error) { this.notice(`Could not open project: ${error.message}`); }
+  }
+
+  /**
+   * Import a mesh file (.stl, .obj) as a Nodes object named after the file: its graph is Import Mesh -> Group Output,
+   * so processing nodes (Slice, Transform...) go in between. The file is kept outside undo and saved with the project.
+   */
+  async importMesh(file) {
+    try {
+      const [{ parseMeshFile, MAX_IMPORT_BYTES }, graphs] = await Promise.all([import('./mesh-import.js'), import('./nodes/graph.js')]);
+      if (file.size > MAX_IMPORT_BYTES) throw new Error('File is larger than 30 MB');
+      if (this.objects.list.length >= MAX_OBJECTS) throw new Error(`the scene holds up to ${MAX_OBJECTS} objects`);
+      const mesh = parseMeshFile(file.name, await file.arrayBuffer());
+      const id = this.store.addAsset(file.name, mesh.positions, mesh.faces);
+      const name = file.name.replace(/\.[^.]+$/, '').slice(0, 60) || 'Mesh';
+      this.sceneEdit(`Import ${file.name}`, () => {
+        const o = this.objects.add('geometry');
+        if (!o) return false;
+        o.name = name;
+        const node = graphs.addNode(o.graph, 'import_mesh', 40, 40);
+        node.params.asset = id;
+        graphs.connect(o.graph, node.id, 'mesh', o.graph.nodes.find(n => n.kind === 'output').id, 'geometry');
+        return true;
+      });
+      this.panel.showSide?.('Item');
+      this.notice(`Imported ${file.name}: ${mesh.positions.length / 3} points, ${mesh.faces.length} faces · Tab to add nodes`);
+    } catch (error) { this.notice(`Could not import ${file.name}: ${error.message}`); }
+  }
   deleteSelected() { const o = this.objects?.selected; if (o) this.sceneEdit(`Delete ${o.name}`, () => this.objects.remove(o.uid)); }
+  /** X: ask first, as Blender does (Delete does it at once; both are one undo step). */
+  confirmDelete(at) { const o = this.objects?.selected; if (o) this.confirm(`Delete ${o.name}`, () => this.deleteSelected(), at); }
+
+  /**
+   * Blender's confirmation: a one-button menu under the pointer. Enter or a click does it; Esc, or a click
+   * anywhere else, does not.
+   */
+  confirm(label, run, at = this.lastPointer) {
+    this.closeConfirm();
+    const menu = this.confirmEl = document.createElement('div');
+    menu.className = 'add-menu confirm-menu'; menu.setAttribute('role', 'menu'); menu.setAttribute('aria-label', 'Confirm');
+    const title = document.createElement('div'); title.className = 'add-title'; title.textContent = 'OK?';
+    const ok = document.createElement('button'); ok.type = 'button'; ok.textContent = label; ok.setAttribute('role', 'menuitem');
+    ok.onclick = () => { this.closeConfirm(); run(); };
+    menu.append(title, ok);
+    menu.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Escape') { e.preventDefault(); this.closeConfirm(); } });
+    this.root.append(menu);
+    const [x, y] = at || [innerWidth / 2, innerHeight / 2], r = this.root.getBoundingClientRect();
+    // the button sits under the pointer, so the answer is one click or Enter away
+    menu.style.left = `${Math.max(8, Math.min(x - r.left - 24, r.width - menu.offsetWidth - 8))}px`;
+    menu.style.top = `${Math.max(8, Math.min(y - r.top - menu.offsetHeight + 14, r.height - menu.offsetHeight - 8))}px`;
+    this.onConfirmOutside = e => { if (!menu.contains(e.target)) { this.skipPick = true; this.closeConfirm(); } };
+    window.addEventListener('pointerdown', this.onConfirmOutside, true);
+    ok.focus({ preventScroll: true });
+  }
+  closeConfirm() {
+    if (!this.confirmEl) return;
+    window.removeEventListener('pointerdown', this.onConfirmOutside, true);
+    this.confirmEl.remove(); this.confirmEl = null;
+    this.focusHover();
+  }
+
+  // ── Blender's rule: the area under the pointer has the keyboard ─────────────────────
+  get hoverType() { return this.hoverArea?.isConnected ? [...this.hoverArea.classList].find(c => c.startsWith('area-'))?.slice(5) ?? null : null; }
+  /** The pointer moved onto `target`: its area takes the keyboard. */
+  hover(target) {
+    const area = target?.closest?.('.area') || null;
+    if (area === this.hoverArea) return;
+    this.hoverArea = area;
+    this.focusHover();
+  }
+  /** After the layout was redrawn the pointer may be over another area without having moved. */
+  rehover() {
+    if (!this.lastPointer) return;
+    this.hoverArea = document.elementFromPoint(...this.lastPointer)?.closest?.('.area') || null;
+    this.focusHover();
+  }
+  /** Give the keyboard to the editor in the area under the pointer, unless someone is typing or a menu is open. */
+  focusHover() {
+    const area = this.hoverArea;
+    if (!area?.isConnected || this.transform?.active) return;
+    const at = document.activeElement;
+    if (at?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), .add-menu, dialog')) return;
+    if (at !== area && area.contains(at)) return;                       // already in this area (a field, the editor itself)
+    const editor = { view3d: this.stage.renderer.domElement, nodes: this.nodeEditor?.root, timeline: this.timelineUI?.root }[this.hoverType]
+      || area.querySelector('.attribute-table:not([hidden])') || area;
+    editor.focus({ preventScroll: true });
+  }
 
   buildEditor() {
     const canvas = this.stage.renderer.domElement;
     // click to select (a click, not an orbit drag): the nearest object or robot; empty space clears
-    this.onPointerTrack = e => { this.lastPointer = [e.clientX, e.clientY]; };
+    this.onPointerTrack = e => { this.lastPointer = [e.clientX, e.clientY]; if (!e.buttons) this.hover(e.target); };
     window.addEventListener('pointermove', this.onPointerTrack);
-    this.onPickDown = e => { this.pickStart = e.button === 0 ? [e.clientX, e.clientY] : null; };
+    this.onPickDown = e => {
+      // the click that dismissed a menu is not also a click on the scene
+      if (this.skipPick) { this.skipPick = false; this.pickStart = null; return; }
+      this.pickStart = e.button === 0 ? [e.clientX, e.clientY] : null;
+    };
     this.onPickUp = e => {
       const p = this.pickStart; this.pickStart = null;
       if (!p || e.button !== 0 || Math.hypot(e.clientX - p[0], e.clientY - p[1]) > 4 || this.transform.active) return;
@@ -551,7 +691,7 @@ export class App {
       ['grab', '\u2725', 'Move · G', () => { canvas.focus(); this.transform.start('grab'); }],
       ['rotate', '\u27f3', 'Rotate · R', () => { canvas.focus(); this.transform.start('rotate'); }],
       ['add', '+', 'Add · Shift+A', b => { const r = b.getBoundingClientRect(); this.openAddMenu([r.right + 6, r.top]); }],
-      ['delete', '\u00d7', 'Delete · X', () => this.deleteSelected()],
+      ['delete', '\u00d7', 'Delete · X', b => { const r = b.getBoundingClientRect(); this.confirmDelete([r.right + 30, r.bottom]); }],
     ];
     for (const [id, icon, tip, run] of tools) {
       const b = document.createElement('button');
@@ -573,16 +713,21 @@ export class App {
     section('Mesh', [['Grid', () => this.addObject('grid')], ['Cube', () => this.addObject('cube')],
       ['Cylinder', () => this.addObject('cylinder')], ['Sphere', () => this.addObject('sphere')]]);
     section('Empty', [['Empty', () => this.addObject('empty')]]);
-    section('Procedural', [['Nodes', () => { this.addObject('geometry'); this.nodeEditor.open(); }]]);
+    section('Procedural', [['Nodes', () => { this.addObject('geometry'); this.nodeEditor.open(); }],
+      ['Import STL / OBJ\u2026', () => this.meshFile?.click()]]);
     section('Robot', [['Robot', () => this.addRobot(this.robot.id)]]);
     this.addSearch = attachSearch(menu, 'Search\u2026');
     menu.addEventListener('keydown', e => {
       e.stopPropagation();
       const items = this.addSearch.visible(), i = items.indexOf(document.activeElement);
       if (e.key === 'Escape') { e.preventDefault(); this.closeAddMenu(); }
-      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+      else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const down = e.key === 'ArrowDown', next = i < 0 ? (down ? 0 : items.length - 1) : (i + (down ? 1 : -1) + items.length) % items.length;
+        items[next]?.focus();   // nothing matches the search: nothing to move to
+      }
     });
-    this.onOutside = e => { if (!menu.hidden && !menu.contains(e.target)) this.closeAddMenu(); };
+    this.onOutside = e => { if (!menu.hidden && !menu.contains(e.target)) { this.skipPick = true; this.closeAddMenu(); } };
     window.addEventListener('pointerdown', this.onOutside, true);
     this.root.append(bar, menu);
     this.editorEls = [bar, menu];
@@ -614,7 +759,7 @@ export class App {
   dispose() {
     if (this.disposed) return; this.disposed = true;
     this.registry?.dispose();
-    this.objects?.dispose(); this.editorEls?.forEach(el => el.remove()); this.nodeEditor?.dispose(); this.gizmo?.dispose(); this.timelineUI?.dispose(); window.removeEventListener('resize', this.onSideResize); this.areas?.dispose(); this.areaObserver?.disconnect();
+    this.objects?.dispose(); this.editorEls?.forEach(el => el.remove()); this.nodeEditor?.dispose(); this.gizmo?.dispose(); this.timelineUI?.dispose(); window.removeEventListener('resize', this.onSideResize); this.root.removeEventListener('dragover', this.onDragOver); this.root.removeEventListener('drop', this.onDrop); this.areas?.dispose(); this.areaObserver?.disconnect();
     if (this.onPickDown) {
       this.stage.renderer.domElement.removeEventListener('pointerdown', this.onPickDown);
       this.stage.renderer.domElement.removeEventListener('pointerup', this.onPickUp);

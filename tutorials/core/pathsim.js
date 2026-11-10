@@ -41,14 +41,16 @@ function rawShape(kind, c, size, n) {
  *   'ok' | 'no_answer' (solver failed; may or may not be reachable) | 'out_of_reach' (proven) |
  *   'jump' (a joint would turn > 30 deg between neighbours) | 'singular' (wrist/elbow < 5 deg) | 'limit' (< 5 deg from a limit)
  */
-export function simulate(chain, points, R, { tool = null, seed } = {}) {
-  let q = seed;
-  return points.map((p, i) => {
+export function simulate(chain, points, R, { tool = null, seed = chain.clamp(new Array(chain.n).fill(0)) } = {}) {
+  let q = seed, before = false;   // before: the point before this one was solved, so the robot really comes from there
+  return points.map(p => {
     const r = chain.ik(m.withPosition(R, p), { seed: q, tool, iterations: 80 });
-    if (!r.ok) return { q, status: r.status === 'out_of_reach' ? 'out_of_reach' : 'no_answer', p };
+    if (!r.ok) { before = false; return { q, status: r.status === 'out_of_reach' ? 'out_of_reach' : 'no_answer', p }; }
     const jump = Math.max(...r.q.map((a, i) => Math.abs(a - q[i])));
-    q = r.q;
-    if (i > 0 && jump > 30 * m.DEG) return { q, status: 'jump', p };   // getting to the first point is not a jump on the path
+    const cameFrom = before;
+    q = r.q; before = true;
+    // getting to the first point, or to the first one reached again after a gap, is not a jump on the path
+    if (cameFrom && jump > 30 * m.DEG) return { q, status: 'jump', p };
     const s = singularities(chain.fk(q, tool));
     if (s.wrist < 5 || s.elbow < 5) return { q, status: 'singular', p };
     if (q.some((a, i) => a - chain.limits[i][0] < 5 * m.DEG || chain.limits[i][1] - a < 5 * m.DEG)) return { q, status: 'limit', p };
@@ -59,13 +61,16 @@ export function simulate(chain, points, R, { tool = null, seed } = {}) {
 /**
  * Dense, evenly spread samples along a polyline (m), keeping every original point (corners stay sharp).
  * Segments are split so no step is longer than `step`, or longer if the whole path would need more than `max`.
- * With more original points than `max`, every k-th one is kept first.
- * The result carries `.sources`: the indices (in the result) of the points that were given, not added.
+ * With more original points than `max`, every k-th one is kept first (and the last).
+ * The result carries `.sources`: the indices (in the result) of the points that were given, not added;
+ * `.dropped`: how many given points were left out; `.step`: the longest step used (m). A caller must report the
+ * last two when they are not 0 and `step`: the result is then coarser than the path that was authored.
  */
 export function densify(points, { step = 0.005, max = 1000 } = {}) {
   let pts = points;
-  if (pts.length > max) { const k = pts.length / max; pts = Array.from({ length: max }, (_, i) => pts[Math.floor(i * k)]).concat([points[points.length - 1]]); }
-  if (pts.length < 2) { const out = pts.slice(); out.sources = out.map((_, i) => i); return out; }
+  if (pts.length > max) { const k = pts.length / (max - 1); pts = Array.from({ length: max - 1 }, (_, i) => pts[Math.floor(i * k)]).concat([points[points.length - 1]]); }
+  const dropped = points.length - pts.length;
+  if (pts.length < 2) { const out = pts.slice(); out.sources = out.map((_, i) => i); out.dropped = dropped; out.step = step; return out; }
   let L = 0;
   for (let i = 1; i < pts.length; i++) L += m.len(m.sub(pts[i], pts[i - 1]));
   const s = Math.max(step, L / Math.max(1, max - pts.length));
@@ -75,7 +80,7 @@ export function densify(points, { step = 0.005, max = 1000 } = {}) {
     for (let j = 1; j <= n; j++) out.push(m.lerp(a, b, j / n));
     sources.push(out.length - 1);
   }
-  out.sources = sources;
+  out.sources = sources; out.dropped = dropped; out.step = s;
   return out;
 }
 

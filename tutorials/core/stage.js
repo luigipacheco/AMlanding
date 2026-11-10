@@ -125,8 +125,8 @@ export class Stage {
 
   resize() {
     const W = Math.max(1, this.root.clientWidth), H = Math.max(1, this.root.clientHeight);
-    this.renderer.setSize(W, H);
-    this.labels.setSize(W, H);
+    // setSize clears the canvas, so only when the size really changed
+    if (W !== this.sizeW || H !== this.sizeH) { this.sizeW = W; this.sizeH = H; this.renderer.setSize(W, H); this.labels.setSize(W, H); }
     const { left = 0, right = 0, top = 0, bottom = 0 } = this.insets();
     const sx = (left + (W - right)) / 2 / W;            // where the target should sit across the screen
     const sy = (top + (H - bottom)) / 2 / H;            // and down it (a docked editor below takes room)

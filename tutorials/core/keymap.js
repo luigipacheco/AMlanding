@@ -1,4 +1,9 @@
 // Key lookup is independent of DOM effects so browser/input conflicts can be tested.
+
+/** Actions that belong to the 3D Viewport: they run only while the pointer is over it (Blender's rule). */
+export const viewportAction = action => /^(grab|rotate|add|delete|delete-now|toolbar|frame|selection|projection|nodes|view:|opposite:)/.test(action);
+/** Actions that work wherever the pointer is. */
+export const GLOBAL_ACTIONS = ['play', 'help'];
 export function editorAction(event, { lessons = false } = {}) {
   if (event.defaultPrevented || event.isComposing || event.repeat
     || event.target?.closest?.('input, select, textarea, [contenteditable]:not([contenteditable="false"]), dialog, [role="dialog"]')) return null;
@@ -17,7 +22,7 @@ export function editorAction(event, { lessons = false } = {}) {
   if (!lessons && event.key === ' ' && !event.shiftKey) return 'play';   // Blender: Space plays the timeline
   if (!lessons && key === 'tab' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) return 'nodes';   // Tab: into the node editor                 // Blender: Shift+A, the Add menu
   const actions = { n: 'panel', p: 'panel', v: 'frame', home: 'frame', '?': 'help', g: 'grab', r: 'rotate',
-    t: 'toolbar', x: 'delete', delete: 'delete' };
+    t: 'toolbar', x: 'delete', delete: 'delete-now' };   // Blender: X asks first, Delete does not
   if (actions[key]) return actions[key];
   const views = { Numpad1: 'view:1', Numpad3: 'view:3', Numpad7: 'view:7', Numpad5: 'projection', NumpadDecimal: 'selection' };
   if (views[event.code]) return views[event.code];

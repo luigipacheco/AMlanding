@@ -85,8 +85,13 @@ export function invert(M) {
 
 // ── orientation conventions ─────────────────────────────────────────────────────
 
-/** Rotation vector (axis * angle, rad, angle in [0, pi]) — what a UR controller shows as RX RY RZ. */
-export function toRotvec(M) {
+/**
+ * Rotation vector (axis * angle, rad, angle in [0, pi]) — what a UR controller shows as RX RY RZ.
+ * Exact by default. `tidy` (rad) is for readouts only: within that angle of a half turn, where the axis may point
+ * either way, the first clear component is shown positive, so a tool-down pose reads the same from every rig.
+ * That costs up to 2 * tidy of rotation, so never use it for values that are solved or stored.
+ */
+export function toRotvec(M, tidy = 0) {
   const v = [M[9] - M[6], M[2] - M[8], M[4] - M[1]];      // = 2 sin(a) * axis
   const s2 = len(v);
   const c = (M[0] + M[5] + M[10] - 1) / 2;
@@ -102,17 +107,23 @@ export function toRotvec(M) {
   const ni = Math.sqrt(Math.max(1e-30, nn[i][i]));
   const get = (r, s) => (r <= s ? nn[r][s] : nn[s][r]);
   let n = normalize([0, 1, 2].map(j => get(i, j) / ni));
-  if (dot(n, v) < 0) n = scale(n, -1);
-  // a half turn is the same either way round: show it with the first clear component positive
-  if (a > Math.PI - 1e-3) { const f = n.find(c => Math.abs(c) > 1e-3); if (f < 0) n = scale(n, -1); }
+  // The antisymmetric part still gives the axis its sign until it drowns in rounding. Only an exact half turn
+  // is the same either way round: show that one with the first clear component positive.
+  if (s2 > 1e-9 && a <= Math.PI - tidy) { if (dot(n, v) < 0) n = scale(n, -1); }
+  else { const f = n.find(c => Math.abs(c) > 1e-3); if (f < 0) n = scale(n, -1); }
   return scale(n, a);
 }
 export function fromRotvec(v) { const a = len(v); return a < 1e-12 ? identity() : rotate(v, a); }
 
-/** Z-Y-X Euler angles [A, B, C] (rad) with R = Rz(A) * Ry(B) * Rx(C) — what a KUKA controller shows as A B C. */
-export function toZYX(M) {
-  const B = Math.atan2(-M[8], Math.hypot(M[0], M[4]));
-  if (Math.abs(Math.cos(B)) > 1e-3) return [Math.atan2(M[4], M[0]), B, Math.atan2(M[9], M[10])];
+/**
+ * Z-Y-X Euler angles [A, B, C] (rad) with R = Rz(A) * Ry(B) * Rx(C) — what a KUKA controller shows as A B C.
+ * Exact by default: only the true lock (B = +-90 deg) loses C. `tidy` (rad) is for readouts only: within that
+ * angle of the lock, A and C trade against each other wildly, so everything is written into A and C reads 0.
+ * That costs up to 2 * tidy of rotation, so never use it for values that are solved or stored.
+ */
+export function toZYX(M, tidy = 0) {
+  const cb = Math.hypot(M[0], M[4]), B = Math.atan2(-M[8], cb);
+  if (cb > Math.max(1e-6, tidy)) return [Math.atan2(M[4], M[0]), B, Math.atan2(M[9], M[10])];
   return [Math.atan2(-M[1], M[5]), B, 0];     // gimbal lock: put everything in A
 }
 export const fromZYX = (A, B, C) => chain(rotZ(A), rotY(B), rotX(C));

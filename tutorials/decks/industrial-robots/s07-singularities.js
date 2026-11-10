@@ -40,7 +40,7 @@ export default {
     mem.axes([3, 5], near.wrist ? [3, 5] : []);
 
     // where the shoulder singularity lives: J1's axis, or a ring around it at the wrist's height
-    const o = f.origins[0], pw = s.wristPoint;
+    const o = f.origins[0], pw = s.shoulderPoint;   // the point that has to stay off J1's axis (or ring)
     if (s.ring > 0.02) { mem.ring.visible = true; mem.ring.place([o[0], o[1]], s.ring, pw[2]); }
     else mem.ring.visible = false;
     mem.axisLine.setPoints([[o[0], o[1], 0], [o[0], o[1], robot.reach * 1.3]]);
