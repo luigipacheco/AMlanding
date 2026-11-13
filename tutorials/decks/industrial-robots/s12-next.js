@@ -1,12 +1,12 @@
-// 11 What's next: the end of the tutorial. A short recap, and where to go from here (links into the home page).
+// 12 What's next: the end of the tutorial. A short recap, and where to go from here (links into the home page).
 // The robot moves slowly, as on the home page; nothing to change on this slide.
 import { isoView } from '../../core/stage.js';
 
 export default {
-  num: '11',
+  num: '12',
   title: "WHAT'S\nNEXT",
   body: r => `You have seen what every robot programmer checks: joints and frames, forward and inverse kinematics, ` +
-    `the TCP, reach, singularities, moves, safety and simulation, on the ${r.maker} ${r.name}.\n\n` +
+    `the TCP, reach, singularities, moves, safety, collisions and simulation, on the ${r.maker} ${r.name}.\n\n` +
     'Animaquina brings it to your robot, in Blender: a live digital twin, real-time control and visual programming. ' +
     'Want a robot cell, or a workshop for your team? We do that too.',
   cta: [

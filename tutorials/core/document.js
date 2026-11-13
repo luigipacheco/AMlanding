@@ -12,6 +12,7 @@ const copy = value => structuredClone(value);
 const safeKey = key => typeof key === 'string' && key.length <= 200
   && !['__proto__', 'constructor', 'prototype'].includes(key);
 const plain = value => value && typeof value === 'object' && !Array.isArray(value);
+export const OVERLAY_DEFAULTS = Object.freeze({ frames: false, axes: false, labels: false });
 
 export function parseProject(text, robotIds) {
   if (typeof text !== 'string' || text.length > MAX_PROJECT_BYTES) throw new Error('Project must be smaller than 32 MB');
@@ -34,9 +35,25 @@ export function parseProject(text, robotIds) {
   }
   const out = { schemaVersion: 1, activeRobotId: source.activeRobotId, contexts };
   if (source.registry !== undefined && source.registry !== null) out.registry = parseRegistry(source.registry, robotIds);
+  if (out.registry) {
+    const legacy = contexts[`workspace/${out.registry.active}`]?.values;
+    if (source.viewportOverlays !== undefined && !plain(source.viewportOverlays)) throw new Error('Invalid viewport overlays');
+    const overlays = { ...OVERLAY_DEFAULTS };
+    for (const key of Object.keys(overlays)) {
+      const value = source.viewportOverlays?.[key];
+      if (value !== undefined && typeof value !== 'boolean') throw new Error(`Invalid viewport overlay: ${key}`);
+      overlays[key] = value ?? (!source.viewportOverlays && legacy?.[key] === 'On');
+    }
+    if (Object.values(overlays).some(Boolean) || source.viewportOverlays) out.viewportOverlays = overlays;
+    for (const [id, context] of Object.entries(contexts)) {
+      if (/^workspace\/r\d+$/.test(id)) for (const key of Object.keys(overlays)) delete context.values[key];
+    }
+  }
   if (source.objects !== undefined && source.objects !== null) out.objects = parseObjects(source.objects);
   if (source.assets !== undefined && source.assets !== null) out.assets = parseAssets(source.assets);
   if (source.timeline !== undefined && source.timeline !== null) out.timeline = parseTimeline(source.timeline);
+  if (source.texts !== undefined && source.texts !== null) out.texts = parseTexts(source.texts);
+  if (source.collections !== undefined && source.collections !== null) out.collections = parseCollections(source.collections);
   if (typeof source.playhead === 'number' && Number.isFinite(source.playhead) && source.playhead >= 0) out.playhead = Math.min(source.playhead, out.timeline?.end ?? 3600);
   if (source.ids !== undefined && source.ids !== null) {
     if (!plain(source.ids)) throw new Error('Invalid id counters');
@@ -60,7 +77,7 @@ export function parseProject(text, robotIds) {
  * data.ids, so the id of something deleted is not given to the next thing made: references to the deleted one
  * (path chains, timeline tasks, Object Info) stay broken instead of quietly pointing at the newcomer.
  */
-const ID_KINDS = ['o', 'r', 't'];
+const ID_KINDS = ['o', 'r', 't', 'x', 'c'];
 export function nextId(data, kind, used) {
   const ids = data.ids ||= {};
   const n = Math.max(ids[kind] || 0, ...used.map(id => +id.slice(1))) + 1;
@@ -98,7 +115,11 @@ export function parseObjects(source) {
       if (!nums(o.pos, 3, MAX_POSITION) || !nums(o.rot, 3, MAX_ROTATION)) throw new Error('Invalid object transform');
       seen.add(o.uid);
       const out = { uid: o.uid, type, name: o.name, pos: o.pos.slice(), rot: o.rot.slice() };
-      if (type === 'geometry') out.graph = parseGraph(o.graph ?? defaultGraph());
+      if (type === 'geometry') {
+        out.graph = parseGraph(o.graph ?? defaultGraph());
+        if (o.showEmpty !== undefined && typeof o.showEmpty !== 'boolean') throw new Error('Invalid Nodes empty visibility');
+        out.showEmpty = o.showEmpty ?? true;
+      }
       if (type === 'empty') {
         out.display = o.display ?? 'Plain Axes'; out.dsize = o.dsize ?? 200;
         if (!EMPTY_DISPLAYS.includes(out.display) || !(typeof out.dsize === 'number' && out.dsize >= 1 && out.dsize <= 10000)) throw new Error('Invalid empty display');
@@ -124,6 +145,29 @@ export function parseObjects(source) {
  * A task whose robot or objects are gone stays in the file and shows as broken; it is not an error.
  */
 export const MAX_TASKS = 64;
+/** A missing orientation in an older task means the home TCP with no local offset. */
+/**
+ * A task's tool orientation, as the add-on has it:
+ *   source 'fixed'      one rotation for every target: offset, XYZ Euler degrees in the robot base (Path > Tool
+ *                       Orientation > Set from Current copies the TCP's, like the add-on's Set Orientation from Current)
+ *   source 'attribute'  one rotation per target: the Point Vector `orientation` (XYZ Euler degrees, robot base)
+ *   object (boolean)    the desired rotation also turns with the path object's rotation (the add-on's Apply Object
+ *                       Transform). An object that is not rotated changes nothing.
+ * Both rotations describe the target: its Z points up, off the surface, and the tool points down onto it
+ * (core/timeline.js tcpForTarget). 0, 0, 0 on an object that is not rotated is the tool straight down.
+ * Older tasks may hold 'object', 'custom', 'home' or 'above' (earlier versions of this panel); they still bake as before.
+ */
+export const ORIENTATION_SOURCES = ['fixed', 'attribute', 'object', 'custom', 'home', 'above'];
+export function parseTaskOrientation(value) {
+  if (!plain(value) || !ORIENTATION_SOURCES.includes(value.source) || !Array.isArray(value.offset)
+    || value.offset.length !== 3 || !value.offset.every(v => Number.isFinite(v) && Math.abs(v) <= 180)
+    || (value.object !== undefined && typeof value.object !== 'boolean')) {
+    throw new Error('Invalid task orientation');
+  }
+  const out = { source: value.source, offset: value.offset.slice() };
+  if (value.object) out.object = true;
+  return out;
+}
 export function parseTimeline(source) {
   if (!plain(source) || !Array.isArray(source.tasks) || source.tasks.length > MAX_TASKS) throw new Error('Invalid timeline');
   const end = source.end;
@@ -136,9 +180,50 @@ export function parseTimeline(source) {
     if (![k.start, k.duration].every(v => typeof v === 'number' && Number.isFinite(v)) || k.start < 0 || k.start > MAX_SECONDS || !(k.duration >= 0.1 && k.duration <= MAX_SECONDS)) throw new Error('Invalid task timing');
     if (!Array.isArray(k.paths) || k.paths.length > MAX_CHAIN || !k.paths.every(p => typeof p === 'string' && /^o\d{1,6}$/.test(p))) throw new Error('Invalid task paths');
     seen.add(k.id);
-    return { id: k.id, robot: k.robot, name: k.name, start: k.start, duration: k.duration, paths: k.paths.slice() };
+    const task = { id: k.id, robot: k.robot, name: k.name, start: k.start, duration: k.duration, paths: k.paths.slice() };
+    if (k.orientation !== undefined) task.orientation = parseTaskOrientation(k.orientation);
+    return task;
   });
   return { end, tasks };
+}
+
+/**
+ * Texts (the Text Editor's text blocks, as Blender's): [{ id 'x1', name, body }]. One kind, as in Blender: what a
+ * text holds (a robot program, a script, a note) shows only in its name's extension (.script, .src, .py, .txt).
+ * Projects saved while texts had a kind and a language still open; those fields are dropped.
+ */
+export const MAX_TEXTS = 64;
+export const MAX_TEXT_CHARS = 1_000_000;
+export function parseTexts(source) {
+  if (!Array.isArray(source) || source.length > MAX_TEXTS) throw new Error('Invalid texts');
+  const seen = new Set();
+  return source.map(t => {
+    if (!plain(t) || typeof t.id !== 'string' || !/^x\d{1,6}$/.test(t.id) || seen.has(t.id)) throw new Error('Invalid text id');
+    if (typeof t.name !== 'string' || !t.name || t.name.length > 64) throw new Error('Invalid text name');
+    if (typeof t.body !== 'string' || t.body.length > MAX_TEXT_CHARS) throw new Error(`Text ${t.name} is too long`);
+    seen.add(t.id);
+    return { id: t.id, name: t.name, body: t.body };
+  });
+}
+
+/**
+ * Collections (Blender's): named groups of scene objects, [{ id 'c1', name, objects: [object uids] }]. An object may
+ * be in several. RMPflow (Move > Follow Target) keeps the robot away from the objects of one collection, by default
+ * the one named Obstacles, as the add-on's Puppet Mode takes an obstacle collection. A deleted object's uid may stay
+ * in a list (it is skipped), as a deleted path object stays in a task.
+ */
+export const MAX_COLLECTIONS = 32;
+export function parseCollections(source) {
+  if (!Array.isArray(source) || source.length > MAX_COLLECTIONS) throw new Error('Invalid collections');
+  const seen = new Set();
+  return source.map(c => {
+    if (!plain(c) || typeof c.id !== 'string' || !/^c\d{1,6}$/.test(c.id) || seen.has(c.id)) throw new Error('Invalid collection id');
+    if (typeof c.name !== 'string' || !c.name || c.name.length > 64) throw new Error('Invalid collection name');
+    if (!Array.isArray(c.objects) || c.objects.length > MAX_OBJECTS || new Set(c.objects).size !== c.objects.length
+      || !c.objects.every(u => typeof u === 'string' && /^o\d{1,6}$/.test(u))) throw new Error(`Invalid objects in collection ${c.name}`);
+    seen.add(c.id);
+    return { id: c.id, name: c.name, objects: c.objects.slice() };
+  });
 }
 
 /**
@@ -163,8 +248,9 @@ export function parseAssets(source) {
 
 /**
  * The robot registry (Animaquina's robot slots): every robot in the scene, each with its own base.
- * { robots: [{ uid, model, name, base: [x, y, z (mm), yaw (deg)], paths?: [object uid, ...] }], active: uid }
- * paths: the robot's path chain, Nodes objects followed in order (a missing object is skipped, not an error).
+ * { robots: [{ uid, model, name, base: [x, y, z (mm), yaw (deg)], paths?: [object uid, ...], target?: object uid }], active: uid }
+ * paths: the robot's path chain, curve or mesh objects followed in order (a missing object is skipped).
+ * target: the robot's TCP target, an empty in the scene (as the add-on's slot.target_object), in world coordinates.
  */
 export const MAX_ROBOTS = 8;
 export const MAX_CHAIN = 16;
@@ -186,6 +272,10 @@ export function parseRegistry(source, robotIds) {
       if (!Array.isArray(r.paths) || r.paths.length > MAX_CHAIN || !r.paths.every(p => typeof p === 'string' && /^o\d{1,6}$/.test(p))) throw new Error('Invalid path chain');
       out.paths = r.paths.slice();
     }
+    if (r.target !== undefined) {           // the robot's target: an empty among the scene objects (a missing one is made again)
+      if (typeof r.target !== 'string' || !/^o\d{1,6}$/.test(r.target)) throw new Error('Invalid robot target');
+      out.target = r.target;
+    }
     return out;
   });
   if (!seen.has(source.active)) throw new Error('Invalid active robot');
@@ -198,6 +288,7 @@ export class ProjectStore {
     this.robotIds = robotIds;
     this.limit = limit;
     this.data = { schemaVersion: 1, activeRobotId: robotIds[0], contexts: {} };
+    this.overlays = { ...OVERLAY_DEFAULTS }; // viewport state stays outside robot edits and undo history
     this.past = []; this.future = []; this.pending = null; this.revision = 0;
     this.assets = new Map();   // imported meshes: big and unchanging, so outside the undo snapshots
   }
@@ -268,12 +359,15 @@ export class ProjectStore {
       const a = this.assets.get(id);
       if (a) assets[id] = { name: a.name, positions: Array.from(a.positions, v => Math.round(v * 1e6) / 1e6), faces: a.faces };
     }
-    const doc = used.size ? { ...this.data, assets } : this.data;
+    const doc = { ...this.data };
+    if (used.size) doc.assets = assets;
+    if (doc.registry && Object.values(this.overlays).some(Boolean)) doc.viewportOverlays = { ...this.overlays };
     return used.size ? JSON.stringify(doc) : JSON.stringify(doc, null, 2);
   }
   load(text) {
     const data = parseProject(text, this.robotIds); // validation must finish before mutating the existing document
     const assets = data.assets || new Map(); delete data.assets;
+    this.overlays = data.viewportOverlays || { ...OVERLAY_DEFAULTS }; delete data.viewportOverlays;
     this.data = data; this.assets = assets; this.past = []; this.future = []; this.pending = null; this.revision++;
   }
 }

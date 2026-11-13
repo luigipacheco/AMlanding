@@ -41,11 +41,22 @@ export function material(tone) {
   return materials[tone];
 }
 
+// The same shading, see-through: Robot Settings > Robot / Twin Opacity (the twin: the connected robot's measured pose).
+// It still writes depth, so a see-through robot reads as one shell rather than showing its own inside.
+const GHOST_FRAG = FRAG.replace('uniform vec3 color;', 'uniform vec3 color;\nuniform float alpha;').replace(/, 1\.0\);(\s*\})\s*$/, ', alpha);$1');
+export function ghostMaterial(tone, alpha = 0.4) {
+  const key = `ghost:${tone}:${alpha}`;
+  materials[key] ||= new THREE.ShaderMaterial({ uniforms: { color: { value: hexToVec(TONES[tone] || tone) }, alpha: { value: alpha } },
+    vertexShader: VERT, fragmentShader: GHOST_FRAG, transparent: true });
+  return materials[key];
+}
+
 // unit shapes along +Y, centred on the origin; placed with `place()`
 const GEO = {
   cyl: new THREE.CylinderGeometry(1, 1, 1, 32),
   cone: new THREE.ConeGeometry(1, 1, 24),
   sphere: new THREE.SphereGeometry(1, 24, 16),
+  box: new THREE.BoxGeometry(1, 1, 1),          // a unit cube about its centre: set position and scale
 };
 const sharedGeometry = new Set(Object.values(GEO));
 let owners = 0;

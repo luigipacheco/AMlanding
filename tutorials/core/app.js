@@ -34,11 +34,13 @@ export async function loadEditorModules() {
   ({ WORKSPACE_NAMES } = layout);
   document.setGraphParser(graph);                 // project files with Nodes objects need the node graph checks
 }
-import { ProjectStore, MAX_PROJECT_BYTES, MAX_OBJECTS, parseProject } from './document.js';
+import { ProjectStore, MAX_PROJECT_BYTES, MAX_OBJECTS, MAX_ROBOTS, parseProject } from './document.js';
 // The Robot IDE's own shortcut sheet (tutorials keep theirs, below).
-const IDE_HELP = '<h2>Shortcuts</h2><p>The editor under the pointer has the keyboard, as in Blender. While you type in a field, keys go to the field.</p><p><strong>3D Viewport</strong> · Middle mouse, or left drag on a trackpad: orbit · Shift + drag: pan · wheel: zoom · Numpad 1 / 3 / 7: front / right / top (Ctrl: opposite) · Numpad 5: projection · Home: frame all · Numpad . : frame selected.</p><p>Shift+A: add · G / R: move / rotate (X Y Z: axis, again: local, again: free; Shift + axis: plane; type a value) · Enter or click: confirm · Esc or right click: cancel · X: delete (asks) · Delete: delete at once · Tab: to the Node Editor · T: toolbar · N: Item / View.</p><p><strong>Node Editor</strong> · Shift+A: add · drag a socket: link · X: delete · Shift+D: duplicate · A: select all · Home: frame.</p><p><strong>Timeline</strong> · Space: play / pause, from any editor · drag a task or its ends · X: delete the task (asks) · Home: to the start.</p><p>Ctrl+Space: maximize the area under the pointer · Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z: undo, redo. Everything edits the offline scene.</p><form method="dialog"><button>Close</button></form>';
+const IDE_HELP = '<h2>Shortcuts</h2><p>The editor under the pointer has the keyboard, as in Blender. While you type in a field, keys go to the field.</p><p><strong>3D Viewport</strong> · Middle mouse, or left drag on a trackpad: orbit · Shift + drag: pan · wheel: zoom · Numpad 1 / 3 / 7: front / right / top (Ctrl: opposite) · Numpad 5: projection · Home: frame all · Numpad . : frame selected.</p><p>Shift+A: add · G / R: move / rotate (X Y Z: axis, again: local, again: free; Shift + axis: plane; type a value) · Enter or click: confirm · Esc or right click: cancel · X: delete (asks) · Delete: delete at once · Tab: show the nodes of the selected Nodes object · T: toolbar · N: Item / View.</p><p><strong>Node Editor</strong> · Shift+A: add · drag a socket: link · X: delete · Shift+D: duplicate · A: select all · Home: frame.</p><p><strong>Timeline</strong> · Space: play / pause, from any editor · drag a task or its ends · X: delete the task (asks) · Home: to the start.</p><p>Ctrl+Space: maximize the area under the pointer · Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z: undo, redo. Everything edits the offline scene.</p><form method="dialog"><button>Close</button></form>';
 import { RenderLoop } from './render-loop.js';
 import { editorAction, viewportAction, GLOBAL_ACTIONS } from './keymap.js';
+import { Collections } from './collections.js';
+import { TextEditor } from './text-editor.js';
 import { TargetTransform } from './transform.js';
 
 export class App {
@@ -167,11 +169,11 @@ export class App {
     else if (action === 'delete' && this.objects?.selected) this.confirmDelete();
     else if (action === 'delete-now' && this.objects?.selected) this.deleteSelected();
     else if (action === 'play' && this.timeline) this.timeline.toggle();
-    else if (action === 'nodes' && this.nodeEditor && this.areas && this.objects?.selected?.type === 'geometry') this.nodeEditor.open();
     else if (action === 'nodes' && this.nodeEditor && this.areas) {
-      // areas stay where the user put them: Tab goes to the Node Editor when it is on screen, and never closes it
-      if (this.nodeEditor.isOpen) this.nodeEditor.root.focus({ preventScroll: true });
-      else this.notice('Tab opens the nodes of a Nodes object: select one, or add one with Shift+A > Nodes');
+      // Tab shows the Node Editor for the selected Nodes object, opening an area if none shows it. Areas stay where
+      // the user put them (Tab never closes one), and the keyboard stays with the editor under the pointer.
+      if (this.objects?.selected?.type === 'geometry') this.nodeEditor.open();
+      else this.notice('Tab shows the nodes of a Nodes object: select one, or add one with Shift+A > Nodes');
     }
     else if (action === 'nodes' && this.nodeEditor) {
       if (this.objects?.selected?.type === 'geometry' || this.nodeEditor.isOpen) this.nodeEditor.toggle();
@@ -243,6 +245,7 @@ export class App {
     const group = this.group = new THREE.Group();
     this.stage.scene.add(group);
 
+    slide.prepare?.(this);                       // scene data the panel reads (the workspace: every robot's target)
     const specs = slide.inputs ? slide.inputs(robot, this) : [];
     const sk = this.registry ? `workspace/${this.registry.active.uid}` : `${this.deck.title}/${robot.id}/${slide.num}`;
     if (this.registry) { group.matrixAutoUpdate = false; matrix4(this.registry.base(this.registry.active), group.matrix); }
@@ -295,7 +298,13 @@ export class App {
     if (changed !== false) this.restore();
   }
   activateRobot(uid) { this.registryEdit('Select robot', () => this.registry.activate(uid)); }
-  addRobot(modelId) { this.registryEdit('Add robot', () => !!this.registry.add(modelId)); }
+  addRobot(modelId) {
+    this.registryEdit('Add robot', () => {
+      const added = !!this.registry.add(modelId);
+      if (!added) this.notice(`No room: up to ${MAX_ROBOTS} robots, and each one's target counts among the ${MAX_OBJECTS} scene objects`);
+      return added;
+    });
+  }
   removeRobot(uid) { this.registryEdit('Remove robot', () => this.registry.remove(uid)); }
 
   /** Base fields changed: move the collections and the slide group without rebuilding the panel. */
@@ -321,6 +330,7 @@ export class App {
       this.useRobot(this.registry.def(this.registry.active));
       this.go(this.index, true); this.syncHistory();
       this.nodeEditor?.render(); this.nodeEditor?.syncMode(); this.timelineUI?.render();
+      this.collections?.render(); this.textEditor?.render();
       return;
     }
     const robot = this.robots.find(r => r.id === this.store.data.activeRobotId);
@@ -334,15 +344,18 @@ export class App {
     const view = this.viewHost = document.createElement('div');
     view.className = 'view3d';
     this.stage.mount(view);
-    view.append(this.nodeEditor.mode, this.toolbarEl, this.gizmo.root, this.hud.el);
+    view.append(this.toolbarEl, this.gizmo.root, this.hud.el);
     this.panel.leftEl?.classList.remove('hidden', 'absent');
     this.panel.el.classList.remove('hidden');
+    this.collections = new Collections(this);
+    this.textEditor = new TextEditor(this);
     this.areas = new AreaManager(this, {
       view3d: view, properties: this.panel.el, animaquina: this.panel.leftEl,
       timeline: this.timelineUI.root, nodes: this.nodeEditor.root,
-      spreadsheet: this.nodeEditor.sheet.root,
+      spreadsheet: this.nodeEditor.sheet.root, outliner: this.collections.root, text: this.textEditor.root,
     });
     this.nodeEditor.root.hidden = false;
+    this.collections.render(); this.textEditor.render();   // built after the first restore: draw them once now
     this.root.classList.add('areas-on');
     // editors redraw when their area changes size
     this.areaObserver = new ResizeObserver(() => this.onAreas());
@@ -414,8 +427,7 @@ export class App {
     this.viewInfo.replaceChildren();
     const part = (text, cls) => { const s = document.createElement('span'); s.textContent = text; if (cls) s.className = cls; this.viewInfo.append(s); };
     part(robot || '', 'vi-robot');
-    if (o) { part(' \u00b7 '); part(o.name, 'vi-object'); if (!o.name.startsWith(type)) part(` ${type}`, 'vi-type'); }
-    else part(' \u00b7 nothing selected', 'vi-type');
+    if (o) { part(' \u00b7 '); part(o.name, 'vi-object'); if (!o.name.startsWith(type)) part(` ${type}`, 'vi-type'); }    else part(' \u00b7 nothing selected', 'vi-type');
   }
 
   /** Numpad . : frame the selected object, or else the active target. */
@@ -432,12 +444,39 @@ export class App {
   }
 
   syncHistory() {
+    this.collections?.refresh();                 // every committed edit: the tree follows the project
     if (!this.toolbar) return;
     this.toolbar.querySelector('[data-action="undo"]').disabled = !this.store.past.length;
     this.toolbar.querySelector('[data-action="redo"]').disabled = !this.store.future.length;
   }
 
   notice(text) { if (this.message) this.message.textContent = text; }
+
+  /**
+   * Blender's axis lines while G / R are locked to an axis: [{ point, direction, axis }] from transform.axisGuides,
+   * drawn through the place the transform started, in the axis colour, over everything; [] hides them.
+   */
+  axisGuide(lines) {
+    if (!this.guides) {
+      this.guides = [0, 1].map(() => {
+        const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]),
+          new THREE.LineBasicMaterial({ depthTest: false, transparent: true, opacity: 0.9 }));
+        line.renderOrder = 20; line.frustumCulled = false; line.visible = false;
+        this.stage.scene.add(line);
+        return line;
+      });
+    }
+    const color = ['#e5484d', '#30a46c', '#2f7fd1'];         // X Y Z, as the TCP frames (draw.js TONES)
+    this.guides.forEach((line, i) => {
+      const g = lines[i];
+      line.visible = !!g;
+      if (!g) return;
+      const far = 50, [x, y, z] = g.point, [dx, dy, dz] = g.direction;
+      line.geometry.setFromPoints([new THREE.Vector3(x - dx * far, y - dy * far, z - dz * far), new THREE.Vector3(x + dx * far, y + dy * far, z + dz * far)]);
+      line.material.color.set(color[g.axis]);
+    });
+    this.stage.invalidate();
+  }
 
   buildTools() {
     const ws = !!this.deck.workspace;
@@ -551,8 +590,7 @@ export class App {
     const changed = fn();
     this.store.commit(); this.syncHistory();
     if (changed !== false) this.restore();
-  }
-  addObject(type) {
+  }  addObject(type) {
     if (this.objects.list.length >= MAX_OBJECTS) { this.notice(`The scene holds up to ${MAX_OBJECTS} objects: delete one first`); return; }
     this.sceneEdit(`Add ${type}`, () => !!this.objects.add(type));
     this.panel.showSide?.('Item');
@@ -562,7 +600,7 @@ export class App {
     try {
       if (file.size > MAX_PROJECT_BYTES) throw new Error('Project must be smaller than 32 MB');
       const text = await file.text(), s = this.store;
-      const before = { data: s.data, assets: s.assets, past: s.past, future: s.future };
+      const before = { data: s.data, assets: s.assets, past: s.past, future: s.future, overlays: s.overlays };
       s.load(text);
       try { this.restore(); }
       catch (error) { Object.assign(s, before, { pending: null }); s.revision++; this.restore(); throw error; }
@@ -595,7 +633,16 @@ export class App {
       this.notice(`Imported ${file.name}: ${mesh.positions.length / 3} points, ${mesh.faces.length} faces · Tab to add nodes`);
     } catch (error) { this.notice(`Could not import ${file.name}: ${error.message}`); }
   }
-  deleteSelected() { const o = this.objects?.selected; if (o) this.sceneEdit(`Delete ${o.name}`, () => this.objects.remove(o.uid)); }
+  deleteSelected() {
+    const o = this.objects?.selected; if (!o) return;
+    const owner = this.registry?.robots.find(r => r.target === o.uid);   // a robot's target goes only with its robot
+    if (owner) { this.notice(`${o.name} is ${owner.name}'s target: it goes when the robot is removed`); return; }
+    this.sceneEdit(`Delete ${o.name}`, () => {
+      if (!this.objects.remove(o.uid)) return false;
+      for (const c of this.store.data.collections || []) c.objects = c.objects.filter(u => u !== o.uid);   // and from its collections
+      return true;
+    });
+  }
   /** X: ask first, as Blender does (Delete does it at once; both are one undo step). */
   confirmDelete(at) { const o = this.objects?.selected; if (o) this.confirm(`Delete ${o.name}`, () => this.deleteSelected(), at); }
 
@@ -672,8 +719,14 @@ export class App {
       ray.setFromCamera(new THREE.Vector2((e.clientX - rect.left) / rect.width * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1), this.stage.camera);
       ray.params.Line.threshold = 0.008; ray.params.Points.threshold = 0.008;   // curves are thin: pick within 8 mm
       const r = this.registry.pick(ray), o = this.objects.pick(ray);
-      if (o && (!r || o.distance <= r.distance)) {
-        if (o.uid !== this.store.data.selected) this.sceneEdit('Select', () => this.objects.select(o.uid));
+      // an empty is picked by a ball around it (slack): a robot's target sits in its tool, and the target is what
+      // is selectable there, not the tool
+      if (o && (!r || o.distance <= r.distance + (o.slack || 0))) {
+        // a robot's target: selecting it makes that robot the active one (its Move panel, G / R drive it)
+        const owner = this.registry.robots.find(x => x.target === o.uid);
+        if (o.uid !== this.store.data.selected || (owner && owner.uid !== this.registry.active.uid)) {
+          this.sceneEdit('Select', () => { this.objects.select(o.uid); if (owner) this.registry.activate(owner.uid); });
+        }
       } else if (r) {
         if (r.uid !== this.registry.active.uid || this.store.data.selected) {
           this.sceneEdit('Select robot', () => { this.objects.select(null); this.registry.activate(r.uid); });
@@ -758,6 +811,9 @@ export class App {
 
   dispose() {
     if (this.disposed) return; this.disposed = true;
+    this.program?.dispose();
+    this.live?.dispose();
+    this.bridge?.dispose();
     this.registry?.dispose();
     this.objects?.dispose(); this.editorEls?.forEach(el => el.remove()); this.nodeEditor?.dispose(); this.gizmo?.dispose(); this.timelineUI?.dispose(); window.removeEventListener('resize', this.onSideResize); this.root.removeEventListener('dragover', this.onDragOver); this.root.removeEventListener('drop', this.onDrop); this.areas?.dispose(); this.areaObserver?.disconnect();
     if (this.onPickDown) {

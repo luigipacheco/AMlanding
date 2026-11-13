@@ -41,7 +41,7 @@ export function fromLibrary(entry, base = '') {
   def.reach = Math.round(reach * 100) / 100;
   def.forward = Math.abs(ph[0]) >= Math.abs(ph[1]) ? [Math.sign(ph[0]), 0, 0] : [0, Math.sign(ph[1]), 0];
   def.shapes = autoShapes(kinematics, [0.11, 0.1, 0.085, 0.065, 0.055, 0.045].map(r => r * def.reach / 1.2));
-  def.scale = Math.min(3, Math.max(0.6, def.reach / 1.3));   // for pens, arrows, the default tool
+  def.scale = Math.min(3, Math.max(0.6, def.reach / 1.3));   // for viewport markers and arrows
   return def;
 }
 

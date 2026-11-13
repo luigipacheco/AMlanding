@@ -26,6 +26,17 @@ export function transformedPose(origin, { mode, axis = null, local = false, excl
   return m.withPosition(m.mul(m.rotate(direction, amount ?? 0), m.rotationOf(origin)), m.position(origin));
 }
 
+/**
+ * The axis lines Blender draws while a move or rotation is locked: through the place the transform started, along
+ * the locked axis (global or the object's own), or along the two other axes for a plane (Shift). [{ point, direction,
+ * axis 0..2 }], or [] when nothing is locked.
+ */
+export function axisGuides(origin, { axis = null, local = false, exclude = false } = {}) {
+  if (axis === null) return [];
+  const point = m.position(origin), dir = i => (local ? m.axis(origin, i) : [0, 1, 2].map(k => +(k === i)));
+  return (exclude ? [0, 1, 2].filter(i => i !== axis) : [axis]).map(i => ({ point, direction: dir(i), axis: i }));
+}
+
 /** Modal target interaction. All edits go through the same document transaction as panel controls. */
 export class TargetTransform {
   constructor(app) {
@@ -105,10 +116,11 @@ export class TargetTransform {
         exclude: this.exclude, amount: this.mode === 'rotate' ? numeric ?? this.dx * .01 : numeric, delta, viewAxis }));
       this.app.updateSlide('target');
     }
+    this.app.axisGuide?.(axisGuides(this.origin, { axis: this.axis, local: this.local, exclude: this.exclude && this.mode === 'grab' }));
     const axis = this.axis === null ? 'FREE' : `${this.exclude ? 'EXCLUDE ' : ''}${'XYZ'[this.axis]} ${this.local ? 'LOCAL' : 'GLOBAL'}`;
     this.app.notice(`${this.mode === 'grab' ? 'MOVE' : 'ROTATE'} TARGET · ${axis} · ${this.input || (this.mode === 'grab' ? 'mm' : 'degrees')} · ${this.valid ? 'Enter confirm / Esc cancel' : 'Enter a valid value and unit'}`);
   }
-  finish() { this.active = this.dirty = false; this.app.stage.controls.enabled = true; this.app.loop.invalidate(); }
+  finish() { this.active = this.dirty = false; this.app.axisGuide?.([]); this.app.stage.controls.enabled = true; this.app.loop.invalidate(); }
   confirm() {
     if (!this.active) return;
     this.preview(); if (!this.valid) return;

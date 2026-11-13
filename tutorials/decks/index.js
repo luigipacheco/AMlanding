@@ -7,9 +7,9 @@ export const TUTORIALS = [
     id: 'industrial-robots',
     num: '01',
     title: 'Introduction to Industrial Robots',
-    summary: 'Joints, forward and inverse kinematics, the TCP, reach, singularities, moves, safety and simulation, ' +
-      'on any of 13 robots. Also a first tour of where things live in Animaquina.',
-    slides: 12,
+    summary: 'Joints, forward and inverse kinematics, the TCP, reach, singularities, moves, safety, collisions and ' +
+      'simulation, on any of 13 robots. Also a first tour of where things live in Animaquina.',
+    slides: 13,
     status: 'ready',
     load: () => import('./industrial-robots/deck.js'),
   },

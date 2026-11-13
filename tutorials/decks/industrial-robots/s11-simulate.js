@@ -1,4 +1,4 @@
-// 10 Simulate: run a short path in simulation before any real move, then the three steps to the real robot.
+// 11 Simulate: run a short path in simulation before any real move, then the three steps to the real robot.
 import * as m from '../../core/mat.js';
 import * as draw from '../../core/draw.js';
 import { shape, simulate, tally, pathFrame, fromPathFrame } from '../../core/pathsim.js';
@@ -14,7 +14,7 @@ const LOOK = {
 };
 
 export default {
-  num: '10',
+  num: '11',
   title: 'SIMULATE',
   body: 'Before a real robot moves, run the program in simulation: every point reached, no joint near its limit, ' +
     'no singularity, no sudden jump.\n\n' +

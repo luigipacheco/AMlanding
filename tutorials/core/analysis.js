@@ -39,6 +39,49 @@ export function allSolutions(chain, target, { tool = null, ref, seeds = 72, iter
   return found.sort((a, b) => dist(a) - dist(b));
 }
 
+/** Singular values of a matrix given as rows (largest first), from the eigenvalues of J J^T (cyclic Jacobi sweeps). */
+export function singularValues(J) {
+  const n = J.length, A = J.map(a => J.map(b => a.reduce((s, x, k) => s + x * b[k], 0)));
+  for (let sweep = 0; sweep < 30; sweep++) {
+    let off = 0;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) off += A[p][q] * A[p][q];
+    if (off < 1e-30) break;
+    for (let p = 0; p < n; p++) for (let q = p + 1; q < n; q++) {
+      if (Math.abs(A[p][q]) < 1e-300) continue;
+      const theta = (A[q][q] - A[p][p]) / (2 * A[p][q]);
+      const t = Math.sign(theta || 1) / (Math.abs(theta) + Math.hypot(theta, 1)), c = 1 / Math.hypot(t, 1), sn = t * c;
+      for (let k = 0; k < n; k++) { const x = A[k][p], y = A[k][q]; A[k][p] = c * x - sn * y; A[k][q] = sn * x + c * y; }
+      for (let k = 0; k < n; k++) { const x = A[p][k], y = A[q][k]; A[p][k] = c * x - sn * y; A[q][k] = sn * x + c * y; }
+    }
+  }
+  return A.map((row, i) => Math.sqrt(Math.max(0, row[i]))).sort((a, b) => b - a);
+}
+
+/**
+ * A size for the arm that does not change with its pose (m): the lengths from joint 2 to joint 6, plus joint 6 to
+ * the TCP. It weighs turning against moving in `condition`, so the number does not depend on the units of length.
+ */
+export function armLength(f) {
+  let L = m.len(m.sub(m.position(f.tcp), f.origins[f.origins.length - 1]));
+  for (let i = 1; i < f.origins.length - 1; i++) L += m.len(m.sub(f.origins[i + 1], f.origins[i]));
+  return Math.max(0.1, L);
+}
+
+/** Below this the arm is close to a singularity (the add-on's default "Condition Warning"). */
+export const CONDITION_MIN = 0.02;
+
+/**
+ * How well conditioned the arm is at an fk() result: the smallest singular value of the TCP Jacobian over the
+ * largest, with the rotation rows scaled by the arm's length. 0 = singular, 1 = ideal. It makes no assumption about
+ * the arm (offset wrists, any joint layout), so it is the measure to trust for a path; it is the one the add-on's
+ * path analysis uses (animaquina_core/runtime/mujoco_worker.py), with the same scaling and the same threshold.
+ */
+export function condition(chain, f) {
+  const J = chain.jacobian(f), L = armLength(f);
+  const s = singularValues(J.map((row, i) => (i < 3 ? row : row.map(x => x * L))));
+  return s[0] > 1e-12 ? s[s.length - 1] / s[0] : 0;
+}
+
 /**
  * How close an fk() result is to the three classic singularities. Works for arms whose J2 and J3 are parallel
  * (UR, KUKA, xArm...). The wrist point is joint 5's origin. Checked against det J on 12 of the 13 robots; the xArm 6

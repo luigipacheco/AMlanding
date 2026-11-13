@@ -494,6 +494,7 @@ export class Panel {
       box.appendChild(b);
     }
     row.appendChild(box);
+    row.setDetails = details => details.forEach((text, i) => { box.children[i].lastChild.textContent = text; });
     row.show = v => [...box.children].forEach(b => {
       const on = b.dataset.value === v;
       b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false');
@@ -554,6 +555,7 @@ export class Panel {
 
   /** Update a live 'readout' or keyed 'info' row. */
   setText(key, text) { this.rows[key]?.row.setText?.(text); }
+  setListDetails(key, details) { this.rows[key]?.row.setDetails?.(details); }
 
   refresh() {
     for (const { row, spec } of Object.values(this.rows)) {

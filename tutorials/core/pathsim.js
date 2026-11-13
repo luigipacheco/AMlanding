@@ -2,7 +2,7 @@
 // Pure math (no three.js). Used by the Simulate slide and the sandbox's Path panel.
 
 import * as m from './mat.js';
-import { singularities } from './analysis.js';
+import { condition, CONDITION_MIN } from './analysis.js';
 
 /** Where a path sits: its centre (mm) and its turn about Z (deg), as one pose (m). G / R move this. */
 export const pathFrame = (centreMm, yawDeg) => m.withPosition(m.rotZ(yawDeg * m.DEG), m.scale(centreMm, 0.001));
@@ -36,23 +36,24 @@ function rawShape(kind, c, size, n) {
 }
 
 /**
- * Solve every point (orientation R, tool) in order, each from the previous answer.
+ * Solve every point in order from the previous answer, with a fixed rotation or a rotation per sample.
  * Each result: { q, status } with status one of
  *   'ok' | 'no_answer' (solver failed; may or may not be reachable) | 'out_of_reach' (proven) |
- *   'jump' (a joint would turn > 30 deg between neighbours) | 'singular' (wrist/elbow < 5 deg) | 'limit' (< 5 deg from a limit)
+ *   'jump' (a joint would turn > 30 deg between neighbours) | 'singular' (Jacobian condition < 0.02) | 'limit' (< 5 deg from a limit)
  */
 export function simulate(chain, points, R, { tool = null, seed = chain.clamp(new Array(chain.n).fill(0)) } = {}) {
   let q = seed, before = false;   // before: the point before this one was solved, so the robot really comes from there
-  return points.map(p => {
-    const r = chain.ik(m.withPosition(R, p), { seed: q, tool, iterations: 80 });
+  return points.map((p, i) => {
+    const rotation = typeof R === 'function' ? R(i) : R;
+    const r = chain.ik(m.withPosition(rotation, p), { seed: q, tool, iterations: 80 });
     if (!r.ok) { before = false; return { q, status: r.status === 'out_of_reach' ? 'out_of_reach' : 'no_answer', p }; }
     const jump = Math.max(...r.q.map((a, i) => Math.abs(a - q[i])));
     const cameFrom = before;
     q = r.q; before = true;
     // getting to the first point, or to the first one reached again after a gap, is not a jump on the path
     if (cameFrom && jump > 30 * m.DEG) return { q, status: 'jump', p };
-    const s = singularities(chain.fk(q, tool));
-    if (s.wrist < 5 || s.elbow < 5) return { q, status: 'singular', p };
+    // the Jacobian's condition number, right for every arm (offset wrists too); the add-on's path analysis uses the same
+    if (condition(chain, chain.fk(q, tool)) < CONDITION_MIN) return { q, status: 'singular', p };
     if (q.some((a, i) => a - chain.limits[i][0] < 5 * m.DEG || chain.limits[i][1] - a < 5 * m.DEG)) return { q, status: 'limit', p };
     return { q, status: 'ok', p };
   });
@@ -61,23 +62,42 @@ export function simulate(chain, points, R, { tool = null, seed = chain.clamp(new
 /**
  * Dense, evenly spread samples along a polyline (m), keeping every original point (corners stay sharp).
  * Segments are split so no step is longer than `step`, or longer if the whole path would need more than `max`.
+ * With quaternions, travel also samples the shortest rotation at 5 degree intervals, within the same budget.
  * With more original points than `max`, every k-th one is kept first (and the last).
  * The result carries `.sources`: the indices (in the result) of the points that were given, not added;
  * `.dropped`: how many given points were left out; `.step`: the longest step used (m). A caller must report the
  * last two when they are not 0 and `step`: the result is then coarser than the path that was authored.
  */
-export function densify(points, { step = 0.005, max = 1000 } = {}) {
+export function densify(points, { step = 0.005, max = 1000, quats } = {}) {
   let pts = points;
-  if (pts.length > max) { const k = pts.length / (max - 1); pts = Array.from({ length: max - 1 }, (_, i) => pts[Math.floor(i * k)]).concat([points[points.length - 1]]); }
+  if (pts.length > max) {
+    const k = pts.length / (max - 1);
+    const kept = Array.from({ length: max - 1 }, (_, i) => Math.floor(i * k)).concat(points.length - 1);
+    pts = kept.map(i => points[i]);
+    if (quats) quats = kept.map(i => quats[i]);
+  }
   const dropped = points.length - pts.length;
-  if (pts.length < 2) { const out = pts.slice(); out.sources = out.map((_, i) => i); out.dropped = dropped; out.step = step; return out; }
+  if (pts.length < 2) { const out = pts.slice(); out.sources = out.map((_, i) => i); out.quats = quats; out.dropped = dropped; out.step = step; return out; }
+  const lengths = [0];
   let L = 0;
-  for (let i = 1; i < pts.length; i++) L += m.len(m.sub(pts[i], pts[i - 1]));
+  for (let i = 1; i < pts.length; i++) {
+    let length = m.len(m.sub(pts[i], pts[i - 1]));
+    if (quats && quats[i] !== quats[i - 1]) {
+      const dot = Math.abs(quats[i].reduce((sum, v, j) => sum + v * quats[i - 1][j], 0));
+      const angle = 2 * Math.acos(Math.min(1, dot));
+      length = Math.max(length, step * angle / (5 * m.DEG));
+    }
+    lengths.push(length); L += length;
+  }
   const s = Math.max(step, L / Math.max(1, max - pts.length));
   const out = [pts[0]], sources = [0];
+  if (quats) out.quats = [quats[0]];
   for (let i = 1; i < pts.length; i++) {
-    const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(m.len(m.sub(b, a)) / s));
-    for (let j = 1; j <= n; j++) out.push(m.lerp(a, b, j / n));
+    const a = pts[i - 1], b = pts[i], n = Math.max(1, Math.ceil(lengths[i] / s));
+    for (let j = 1; j <= n; j++) {
+      out.push(m.lerp(a, b, j / n));
+      if (quats) out.quats.push(j === n || quats[i] === quats[i - 1] ? quats[i] : m.slerp(quats[i - 1], quats[i], j / n));
+    }
     sources.push(out.length - 1);
   }
   out.sources = sources; out.dropped = dropped; out.step = s;

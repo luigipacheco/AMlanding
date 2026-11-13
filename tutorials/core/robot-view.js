@@ -6,8 +6,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import * as m from './mat.js';
-import { mesh, place, material, matrix4 } from './draw.js';
+import { mesh, place, material, ghostMaterial, matrix4 } from './draw.js';
 import { ResourceCache } from './resource-cache.js';
+import { penProfile, cylinderPoints } from './shapes.js';
+import { hullPoints } from './hull.js';
+
 
 export function createModelAssets() {
   const draco = new DRACOLoader().setDecoderPath('https://unpkg.com/three@0.160.0/examples/jsm/libs/draco/gltf/');
@@ -28,8 +31,11 @@ export function createModelAssets() {
 }
 
 export class RobotView {
-  constructor(robot, assets) {
+  /** materialFor: tone -> material, for a robot drawn differently (the measured twin is see-through). */
+  constructor(robot, assets, { materialFor = material } = {}) {
     this.robot = robot;
+    this.materialFor = materialFor;
+    this.opacity = 1;
     this.assets = assets || createModelAssets();
     this.ownsAssets = !assets;
     this.group = new THREE.Group();
@@ -43,6 +49,7 @@ export class RobotView {
       g.matrixAutoUpdate = false;
       for (const s of shapes) {
         const o = place(mesh('cyl', s.tone), s.a, s.b, s.r);
+        o.material = materialFor(s.tone);
         g.add(o);
         this.simple.push(o);
         if (s.housing && li > 0) {
@@ -88,13 +95,15 @@ export class RobotView {
         if (!o.isMesh) return;
         const c = (Array.isArray(o.material) ? o.material[0] : o.material)?.color;
         o.userData.tone = c ? `#${c.getHexString()}` : 'mid';
-        o.material = material(o.userData.tone);
+        o.material = this.materialFor(o.userData.tone);
       });
       // Measure the part in its own (link) frame BEFORE it hangs on the posed link: once attached, Box3.setFromObject
       // reads world space, which is wherever the robot happened to be posed (labels / arrows landed 0.2-0.8 m off).
       part.updateMatrixWorld(true);
       const ownBox = new THREE.Box3().setFromObject(part);
       this.links[k].add(part);
+      (this.parts ||= [])[k] = part;
+      this.hulls = null;
       if (k > 0) {
         const list = [];
         part.traverse(o => o.isMesh && list.push(o));
@@ -123,7 +132,8 @@ export class RobotView {
     matrix4(this.robot.chain.base, this.links[0].matrix);
     f.links.forEach((T, i) => matrix4(T, this.links[i + 1].matrix));
     this.links.forEach(g => g.matrixWorldNeedsUpdate = true);
-    this.pen.update(f, this.robot);
+    this.pen.update(f);
+    this.overlays?.update();
     return f;
   }
 
@@ -131,14 +141,58 @@ export class RobotView {
   centre(i) { return m.point(this.f.links[i], this.centres[i]); }
   axis(i) { return this.f.axes[i]; }
 
+  /** See-through (alpha < 1) or solid. The pen keeps its own look. */
+  setOpacity(alpha = 1) {
+    alpha = Math.round(Math.min(1, Math.max(0.05, alpha)) * 20) / 20;      // 5 % steps: a few shared materials
+    if (alpha === this.opacity) return;
+    this.opacity = alpha;
+    this.materialFor = alpha >= 1 ? material : tone => ghostMaterial(tone, alpha);
+    for (const link of this.links) link.traverse(o => { if (o.isMesh && o.userData.tone) o.material = this.materialFor(o.userData.tone); });
+    this.highlight(this.highlighted, this.highlightTone);
+  }
+
+  /**
+   * Each link's convex hull (flat points, its link frame, m), for collision checks: from the model's own meshes, or from the
+   * simple shapes while it has not loaded (or failed to). Cached; `model` says which it came from.
+   */
+  collisionHulls() {
+    if (this.hulls) return this.hulls;
+    const rel = new THREE.Matrix4(), v = new THREE.Vector3();
+    let model = true;
+    const links = this.links.map((g, k) => {
+      const pts = [], part = this.parts?.[k];
+      if (part) {
+        part.updateMatrixWorld(true);
+        const inv = new THREE.Matrix4().copy(g.matrixWorld).invert();
+        part.traverse(o => {
+          const pos = o.isMesh && o.geometry?.attributes?.position;
+          if (!pos) return;
+          rel.multiplyMatrices(inv, o.matrixWorld);
+          for (let i = 0; i < pos.count; i++) { v.fromBufferAttribute(pos, i).applyMatrix4(rel); pts.push(v.x, v.y, v.z); }
+        });
+      }
+      if (!pts.length) {
+        model = false;
+        for (const s of this.robot.shapes[k] || []) pts.push(...cylinderPoints(s.a, s.b, s.r));
+      }
+      return hullPoints(pts);
+    });
+    const hulls = { links, model };
+    if (model) this.hulls = hulls;                  // the simple shapes are only until the model is in
+    return hulls;
+  }
+
   /** Colour some joints' moving parts (indices), everything else back to normal. */
   highlight(indices = [], tone = 'accent') {
     this.highlighted = indices;
     this.highlightTone = tone;
-    this.housings.forEach((list, i) => list?.forEach(o => { o.material = material(indices.includes(i) ? tone : o.userData.tone); }));
+    this.housings.forEach((list, i) => list?.forEach(o => { o.material = this.materialFor(indices.includes(i) ? tone : o.userData.tone); }));
   }
 
-  showPen(on) { this.pen.group.visible = on; this.pen.update(this.f, this.robot); }
+  showPen(on, barrelAxis) {
+    this.pen.barrelAxis = barrelAxis ?? m.scale(m.axis(m.identity(), this.robot.toolAxisIndex), -1);
+    this.pen.group.visible = on; this.pen.update(this.f);
+  }
 
   reset() {
     this.highlight([]);
@@ -149,6 +203,7 @@ export class RobotView {
   dispose() {
     if (this.disposed) return;
     this.disposed = true; this.onModel = null;
+    this.overlays?.dispose();
     this.group.removeFromParent(); this.group.clear();
     this.asset?.release();
     if (this.ownsAssets) this.assets.dispose();
@@ -166,20 +221,15 @@ class Pen {
     };
     Object.values(this.parts).forEach(p => this.group.add(p));
   }
-  update(f, robot) {
+  update(f) {
     if (!this.group.visible || !f) return;
-    const s = robot.scale || 1;
-    const tip = m.position(f.tcp), d = m.axis(f.tcp, robot.toolAxisIndex);
-    const fp = m.position(f.flange), n = m.axis(f.flange, 2);
-    const at = k => m.sub(tip, m.scale(d, k * s));
-    const show = m.len(m.sub(tip, fp)) > 0.06 * s;
-    Object.values(this.parts).forEach(p => p.visible = show);
-    if (!show) return;
-    const P = this.parts;
-    place(P.tip, at(0.03), tip, 0.015 * s);
-    place(P.body, at(0.14), at(0.03), 0.015 * s);
-    place(P.cap, at(0.16), at(0.14), 0.017 * s);
-    place(P.plate, fp, m.add(fp, m.scale(n, 0.015 * s)), 0.04 * s);
-    place(P.bar, m.add(fp, m.scale(n, 0.015 * s)), at(0.16), 0.008 * s);
+    const pen = penProfile(f, this.barrelAxis);
+    const parts = this.parts;
+    if (!pen) { Object.values(parts).forEach(p => p.visible = false); return; }
+    place(parts.tip, pen.neck, pen.tip, 0.015 * pen.scale);
+    place(parts.body, pen.shoulder, pen.neck, 0.015 * pen.scale);
+    place(parts.cap, pen.cap, pen.shoulder, 0.017 * pen.scale);
+    place(parts.plate, pen.flange, pen.mount, 0.04 * pen.scale);
+    place(parts.bar, pen.mount, pen.cap, 0.008 * pen.scale);
   }
 }

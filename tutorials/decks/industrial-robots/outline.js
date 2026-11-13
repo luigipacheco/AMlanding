@@ -9,6 +9,7 @@ export const OUTLINE = [
   ['07', 'singularities'],
   ['08', 'joint move, linear move'],
   ['09', 'safety'],
-  ['10', 'simulate'],
-  ['11', "what's next"],
+  ['10', 'collisions'],
+  ['11', 'simulate'],
+  ['12', "what's next"],
 ];
